@@ -1,0 +1,15 @@
+body, #root {
+  min-height: 100vh;
+}
+
+.bg-primary-soft {
+  background-color: rgba(var(--bs-primary-rgb), 0.1);
+}
+
+.bg-success-soft {
+  background-color: rgba(var(--bs-success-rgb), 0.1);
+}
+
+.bg-danger-soft {
+  background-color: rgba(var(--bs-danger-rgb), 0.1);
+}
