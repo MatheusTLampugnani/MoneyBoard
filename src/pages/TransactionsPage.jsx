@@ -11,9 +11,10 @@ const TransactionsPage = () => {
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [currentTransaction, setCurrentTransaction] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   const formatDateForInput = (date) => date ? new Date(date).toISOString().split('T')[0] : '';
   const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -29,12 +30,8 @@ const TransactionsPage = () => {
 
       if (transactionsResponse.error) throw transactionsResponse.error;
       if (categoriesResponse.error) throw categoriesResponse.error;
-      
-      const formattedTransactions = transactionsResponse.data.map(t => ({
-          ...t,
-          categoryId: t.category_id 
-      }));
 
+      const formattedTransactions = transactionsResponse.data.map(t => ({ ...t, categoryId: t.category_id }));
       setTransactions(formattedTransactions || []);
       setCategories(categoriesResponse.data || []);
     } catch (err) {
@@ -51,18 +48,18 @@ const TransactionsPage = () => {
 
   const openModalForCreate = () => {
     setCurrentTransaction({ id: null, description: '', amount: '', type: 'despesa', date: formatDateForInput(new Date()), categoryId: '' });
-    setIsModalOpen(true);
+    setIsFormModalOpen(true);
   };
 
   const openModalForEdit = (t) => {
     setCurrentTransaction({ ...t, date: formatDateForInput(t.date) });
-    setIsModalOpen(true);
+    setIsFormModalOpen(true);
   };
-  const closeModal = () => setIsModalOpen(false);
+
+  const closeFormModal = () => setIsFormModalOpen(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     const transactionDataForSupabase = {
       description: currentTransaction.description,
       amount: currentTransaction.amount,
@@ -74,36 +71,36 @@ const TransactionsPage = () => {
     try {
       let error;
       if (currentTransaction.id) {
-        const { error: updateError } = await supabase
-          .from('transactions')
-          .update(transactionDataForSupabase)
-          .eq('id', currentTransaction.id);
+        const { error: updateError } = await supabase.from('transactions').update(transactionDataForSupabase).eq('id', currentTransaction.id);
         error = updateError;
       } else {
-        const { error: insertError } = await supabase
-          .from('transactions')
-          .insert(transactionDataForSupabase);
+        const { error: insertError } = await supabase.from('transactions').insert(transactionDataForSupabase);
         error = insertError;
       }
       if (error) throw error;
       fetchData();
-      closeModal();
+      closeFormModal();
     } catch (err) { 
       console.error("Erro ao salvar transação:", err); 
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Tem certeza?')) {
+  const handleDeleteClick = (id) => {
+    setItemToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (itemToDelete) {
       try {
-        const { error: deleteError } = await supabase
-          .from('transactions')
-          .delete()
-          .eq('id', id);
+        const { error: deleteError } = await supabase.from('transactions').delete().eq('id', itemToDelete);
         if (deleteError) throw deleteError;
         fetchData();
-      } catch (err) { 
-        console.error("Erro ao deletar transação:", err); 
+      } catch (err) {
+        console.error("Erro ao deletar transação:", err);
+      } finally {
+        setShowDeleteModal(false);
+        setItemToDelete(null);
       }
     }
   };
@@ -137,7 +134,7 @@ const TransactionsPage = () => {
                   <td>{new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</td>
                   <td>
                     <Button variant="outline-secondary" size="sm" onClick={() => openModalForEdit(t)} className="me-2"><Edit size={16} /></Button>
-                    <Button variant="outline-danger" size="sm" onClick={() => handleDelete(t.id)}><Trash2 size={16} /></Button>
+                    <Button variant="outline-danger" size="sm" onClick={() => handleDeleteClick(t.id)}><Trash2 size={16} /></Button>
                   </td>
                 </tr>
               ))}
@@ -145,10 +142,9 @@ const TransactionsPage = () => {
           </Table>
         </Card>
       )}
-
-      {isModalOpen && (
-        <Modal isOpen={isModalOpen} onClose={closeModal} title={currentTransaction?.id ? 'Editar Transação' : 'Nova Transação'}
-          footer={<><Button variant="secondary" onClick={closeModal}>Cancelar</Button><Button onClick={handleSubmit}>Salvar</Button></>}>
+      {isFormModalOpen && (
+        <Modal isOpen={isFormModalOpen} onClose={closeFormModal} title={currentTransaction?.id ? 'Editar Transação' : 'Nova Transação'}
+          footer={<><Button variant="secondary" onClick={closeFormModal}>Cancelar</Button><Button onClick={handleSubmit}>Salvar</Button></>}>
           <Form onSubmit={handleSubmit}>
             <Input id="description" label="Descrição" value={currentTransaction.description} onChange={(e) => setCurrentTransaction({ ...currentTransaction, description: e.target.value })} required />
             <Row>
@@ -181,6 +177,17 @@ const TransactionsPage = () => {
           </Form>
         </Modal>
       )}
+      <Modal 
+        isOpen={showDeleteModal} 
+        onClose={() => setShowDeleteModal(false)} 
+        title="Confirmar Exclusão"
+        footer={<>
+            <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</Button>
+            <Button variant="danger" onClick={confirmDelete}>Deletar</Button>
+        </>}
+      >
+        <p>Tem certeza que deseja deletar esta transação?</p>
+      </Modal>
     </>
   );
 };

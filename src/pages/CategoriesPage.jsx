@@ -10,9 +10,10 @@ const CategoriesPage = () => {
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [currentCategory, setCurrentCategory] = useState({ id: null, name: '', color: '#0d6efd' });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   const fetchCategories = useCallback(async () => {
     setIsLoading(true);
@@ -24,7 +25,6 @@ const CategoriesPage = () => {
         .order('name', { ascending: true });
 
       if (fetchError) throw fetchError;
-
       setCategories(data || []);
     } catch (err) {
       console.error("Erro ao carregar categorias:", err);
@@ -40,14 +40,15 @@ const CategoriesPage = () => {
 
   const openModalForCreate = () => {
     setCurrentCategory({ id: null, name: '', color: '#0d6efd' });
-    setIsModalOpen(true);
+    setIsFormModalOpen(true);
   };
 
   const openModalForEdit = (category) => {
     setCurrentCategory(category);
-    setIsModalOpen(true);
+    setIsFormModalOpen(true);
   };
-  const closeModal = () => setIsModalOpen(false);
+
+  const closeFormModal = () => setIsFormModalOpen(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -66,29 +67,34 @@ const CategoriesPage = () => {
           .insert({ name, color });
         error = insertError;
       }
-
       if (error) throw error;
-
       fetchCategories();
-      closeModal();
+      closeFormModal();
     } catch (err) {
       console.error("Erro ao salvar categoria:", err);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Tem certeza que deseja deletar esta categoria?')) {
+  const handleDeleteClick = (id) => {
+    setItemToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (itemToDelete) {
       try {
         const { error: deleteError } = await supabase
           .from('categories')
           .delete()
-          .eq('id', id);
+          .eq('id', itemToDelete);
         
         if (deleteError) throw deleteError;
-
         fetchCategories();
       } catch (err) {
         console.error("Erro ao deletar categoria:", err);
+      } finally {
+        setShowDeleteModal(false);
+        setItemToDelete(null);
       }
     }
   };
@@ -112,20 +118,30 @@ const CategoriesPage = () => {
                 </div>
                 <div>
                   <Button variant="outline-secondary" size="sm" onClick={() => openModalForEdit(cat)} className="me-2"><Edit size={16} /></Button>
-                  <Button variant="outline-danger" size="sm" onClick={() => handleDelete(cat.id)}><Trash2 size={16} /></Button>
+                  <Button variant="outline-danger" size="sm" onClick={() => handleDeleteClick(cat.id)}><Trash2 size={16} /></Button>
                 </div>
               </ListGroup.Item>
             ))}
           </ListGroup>
         </Card>
       )}
-
-      <Modal isOpen={isModalOpen} onClose={closeModal} title={currentCategory.id ? 'Editar Categoria' : 'Nova Categoria'}
-        footer={<><Button variant="secondary" onClick={closeModal}>Cancelar</Button><Button onClick={handleSubmit}>Salvar</Button></>}>
+      <Modal isOpen={isFormModalOpen} onClose={closeFormModal} title={currentCategory.id ? 'Editar Categoria' : 'Nova Categoria'}
+        footer={<><Button variant="secondary" onClick={closeFormModal}>Cancelar</Button><Button onClick={handleSubmit}>Salvar</Button></>}>
         <form onSubmit={handleSubmit}>
           <Input id="name" label="Nome da Categoria" value={currentCategory.name} onChange={(e) => setCurrentCategory({...currentCategory, name: e.target.value})} required/>
           <Input id="color" label="Cor" type="color" value={currentCategory.color} onChange={(e) => setCurrentCategory({...currentCategory, color: e.target.value})} />
         </form>
+      </Modal>
+      <Modal 
+        isOpen={showDeleteModal} 
+        onClose={() => setShowDeleteModal(false)} 
+        title="Confirmar Exclusão"
+        footer={<>
+            <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</Button>
+            <Button variant="danger" onClick={confirmDelete}>Deletar</Button>
+        </>}
+      >
+        <p>Tem certeza que deseja deletar esta categoria?</p>
       </Modal>
     </>
   );

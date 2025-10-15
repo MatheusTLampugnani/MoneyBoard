@@ -10,9 +10,10 @@ const GoalsPage = () => {
   const [goals, setGoals] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [currentGoal, setCurrentGoal] = useState({ id: null, name: '', targetAmount: '', currentAmount: 0, targetDate: '' });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
   
   const formatDateForInput = (date) => date ? new Date(date).toISOString().split('T')[0] : '';
   const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -51,58 +52,58 @@ const GoalsPage = () => {
 
   const openModalForCreate = () => {
     setCurrentGoal({ id: null, name: '', targetAmount: '', currentAmount: 0, targetDate: '' });
-    setIsModalOpen(true);
+    setIsFormModalOpen(true);
   };
 
   const openModalForEdit = (goal) => {
     setCurrentGoal({ ...goal, targetDate: formatDateForInput(goal.targetDate) });
-    setIsModalOpen(true);
+    setIsFormModalOpen(true);
   };
-  const closeModal = () => setIsModalOpen(false);
+
+  const closeFormModal = () => setIsFormModalOpen(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     const goalDataForSupabase = {
       name: currentGoal.name,
-      target_amount: currentGoal.targetAmount,   
-      current_amount: currentGoal.currentAmount, 
+      target_amount: currentGoal.targetAmount,
+      current_amount: currentGoal.currentAmount,
       target_date: currentGoal.targetDate || null,
     };
 
     try {
       let error;
       if (currentGoal.id) {
-        const { error: updateError } = await supabase
-          .from('goals')
-          .update(goalDataForSupabase)
-          .eq('id', currentGoal.id);
+        const { error: updateError } = await supabase.from('goals').update(goalDataForSupabase).eq('id', currentGoal.id);
         error = updateError;
       } else {
-        const { error: insertError } = await supabase
-          .from('goals')
-          .insert(goalDataForSupabase);
+        const { error: insertError } = await supabase.from('goals').insert(goalDataForSupabase);
         error = insertError;
       }
       if (error) throw error;
       fetchGoals();
-      closeModal();
+      closeFormModal();
     } catch (err) {
       console.error("Erro ao salvar meta:", err);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Tem certeza?')) {
+  const handleDeleteClick = (id) => {
+    setItemToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (itemToDelete) {
       try {
-        const { error: deleteError } = await supabase
-          .from('goals')
-          .delete()
-          .eq('id', id);
+        const { error: deleteError } = await supabase.from('goals').delete().eq('id', itemToDelete);
         if (deleteError) throw deleteError;
         fetchGoals();
       } catch (err) {
         console.error("Erro ao deletar meta:", err);
+      } finally {
+        setShowDeleteModal(false);
+        setItemToDelete(null);
       }
     }
   };
@@ -117,7 +118,7 @@ const GoalsPage = () => {
               <Card.Title className="h5">{goal.name}</Card.Title>
               <div>
                 <Button variant="outline-secondary" size="sm" onClick={() => openModalForEdit(goal)} className="me-2"><Edit size={16} /></Button>
-                <Button variant="outline-danger" size="sm" onClick={() => handleDelete(goal.id)}><Trash2 size={16} /></Button>
+                <Button variant="outline-danger" size="sm" onClick={() => handleDeleteClick(goal.id)}><Trash2 size={16} /></Button>
               </div>
             </div>
             <ProgressBar now={progress} label={`${progress.toFixed(1)}%`} className="my-3" />
@@ -140,9 +141,9 @@ const GoalsPage = () => {
       {isLoading && <div className="text-center"><Spinner animation="border" /></div>}
       {error && <Alert variant="danger">{error}</Alert>}
       <Row>{!isLoading && goals.map(goal => <GoalCard key={goal.id} goal={goal} />)}</Row>
-      {isModalOpen && (
-        <Modal isOpen={isModalOpen} onClose={closeModal} title={currentGoal?.id ? 'Editar Meta' : 'Nova Meta'}
-          footer={<><Button variant="secondary" onClick={closeModal}>Cancelar</Button><Button onClick={handleSubmit}>Salvar</Button></>}>
+      {isFormModalOpen && (
+        <Modal isOpen={isFormModalOpen} onClose={closeFormModal} title={currentGoal?.id ? 'Editar Meta' : 'Nova Meta'}
+          footer={<><Button variant="secondary" onClick={closeFormModal}>Cancelar</Button><Button onClick={handleSubmit}>Salvar</Button></>}>
           <form onSubmit={handleSubmit}>
             <Input id="name" label="Nome da Meta" value={currentGoal.name} onChange={(e) => setCurrentGoal({ ...currentGoal, name: e.target.value })} required />
             <Input id="targetAmount" label="Valor Alvo (R$)" type="number" step="0.01" value={currentGoal.targetAmount} onChange={(e) => setCurrentGoal({ ...currentGoal, targetAmount: e.target.value })} required />
@@ -151,6 +152,17 @@ const GoalsPage = () => {
           </form>
         </Modal>
       )}
+      <Modal 
+        isOpen={showDeleteModal} 
+        onClose={() => setShowDeleteModal(false)} 
+        title="Confirmar Exclusão"
+        footer={<>
+            <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</Button>
+            <Button variant="danger" onClick={confirmDelete}>Deletar</Button>
+        </>}
+      >
+        <p>Tem certeza que deseja deletar esta meta?</p>
+      </Modal>
     </>
   );
 };
