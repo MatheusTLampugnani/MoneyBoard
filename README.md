@@ -4,14 +4,6 @@ MoneyBoard é uma aplicação web de código aberto projetada para simplificar o
 
 O projeto utiliza uma arquitetura serverless, aproveitando serviços de nuvem para oferecer uma experiência rápida, segura e escalável sem a necessidade de gerenciar um servidor backend tradicional.
 
-<br>
-
-\<div align="center"\>
-\<img src="URL\_DO\_SEU\_SCREENSHOT\_AQUI" alt="Screenshot da aplicação MoneyBoard"\>
-\</div\>
-
-<br>
-
 ## ✨ Funcionalidades Principais
 
   * 📊 **Dashboard Visual:** Acompanhe o fluxo do seu dinheiro com um resumo mensal e gráficos interativos.
@@ -34,3 +26,5 @@ O projeto foi construído com as seguintes tecnologias de ponta:
       * **Row Level Security (RLS):** Implementado para garantir total privacidade e segurança dos dados de cada utilizador.
   * **Hospedagem:**
       * **Render:** Deploy contínuo da aplicação como um *Static Site*.
+
+A aplicação está disponível em https://moneyboard.onrender.com
