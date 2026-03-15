@@ -8,6 +8,7 @@ import TransactionsPage from './pages/TransactionsPage';
 import CategoriesPage from './pages/CategoriesPage';
 import GoalsPage from './pages/GoalsPage';
 import LoginPage from './pages/LoginPage';
+import AccountsPage from './pages/AccountsPage';
 import RegisterPage from './pages/RegisterPage';
 
 const ProtectedRoute = ({ children }) => {
@@ -55,6 +56,7 @@ function App() {
         <Route path="/transactions" element={<TransactionsPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/goals" element={<GoalsPage />} />
+        <Route path="/accounts" element={<AccountsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

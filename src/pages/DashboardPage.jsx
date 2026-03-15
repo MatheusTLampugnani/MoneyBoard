@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../context/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import BalanceCard from '../components/dashboard/BalanceCard';
 import TransactionsChart from '../components/dashboard/TransactionsChart';

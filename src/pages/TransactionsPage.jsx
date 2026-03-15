@@ -1,53 +1,107 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../context/AuthContext';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
-import { Plus, Edit, Trash2 } from 'lucide-react';
-import { Spinner, Alert, Card, Table, Form, Row, Col } from 'react-bootstrap';
+import { Plus, Edit, Trash2, BarChart3, List, CreditCard, Wallet } from 'lucide-react';
+import { Spinner, Alert, Card, Table, Form, Row, Col, Tabs, Tab } from 'react-bootstrap';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const TransactionsPage = () => {
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [accounts, setAccounts] = useState([]); 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeView, setActiveView] = useState('list');
+  
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [currentTransaction, setCurrentTransaction] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
 
-  const formatDateForInput = (date) => date ? new Date(date).toISOString().split('T')[0] : '';
   const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  const formatDateForInput = (date) => date ? new Date(date).toISOString().split('T')[0] : '';
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [transactionsResponse, categoriesResponse] = await Promise.all([
-        supabase.from('transactions').select('*, categories(name)').order('date', { ascending: false }),
-        supabase.from('categories').select('*').order('name')
+      const [tRes, cRes, aRes] = await Promise.all([
+        supabase.from('transactions').select('*, categories(name), accounts(*)').order('date', { ascending: false }),
+        supabase.from('categories').select('*').order('name'),
+        supabase.from('accounts').select('*').order('name')
       ]);
 
-      if (transactionsResponse.error) throw transactionsResponse.error;
-      if (categoriesResponse.error) throw categoriesResponse.error;
+      if (tRes.error) throw tRes.error;
+      if (cRes.error) throw cRes.error;
+      if (aRes.error) throw aRes.error;
 
-      const formattedTransactions = transactionsResponse.data.map(t => ({ ...t, categoryId: t.category_id }));
-      setTransactions(formattedTransactions || []);
-      setCategories(categoriesResponse.data || []);
+      setTransactions(tRes.data.map(t => ({ ...t, categoryId: t.category_id, accountId: t.account_id })) || []);
+      setCategories(cRes.data || []);
+      setAccounts(aRes.data || []);
     } catch (err) {
-      console.error("Erro ao carregar dados:", err);
-      setError("Não foi possível carregar os dados da página.");
+      console.error("Erro ao buscar dados:", err);
+      setError("Não foi possível carregar as informações.");
     } finally {
       setIsLoading(false);
     }
   }, []);
-  
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const getCompetenceKey = (dateStr, account) => {
+    const date = new Date(dateStr);
+    let month = date.getUTCMonth();
+    let year = date.getUTCFullYear();
+
+    if (account?.type === 'credito' && account.closing_day) {
+      if (date.getUTCDate() >= account.closing_day) {
+        month += 1;
+        if (month > 11) { month = 0; year += 1; }
+      }
+    }
+    return `${year}-${String(month + 1).padStart(2, '0')}`;
+  };
+
+  const { groupedData, chartData, sortedMonthKeys } = useMemo(() => {
+    const groups = {};
+    const chartMap = {};
+
+    transactions.forEach(t => {
+      const account = accounts.find(a => a.id === t.account_id);
+      const monthKey = getCompetenceKey(t.date, account);
+      
+      const dateObj = new Date(monthKey + '-02');
+      const monthLabel = dateObj.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit', timeZone: 'UTC' });
+
+      if (!groups[monthKey]) groups[monthKey] = [];
+      groups[monthKey].push(t);
+
+      if (!chartMap[monthKey]) {
+        chartMap[monthKey] = { name: monthLabel, receitas: 0, despesas: 0, rawDate: monthKey };
+      }
+      const amount = parseFloat(t.amount);
+      if (t.type === 'receita') chartMap[monthKey].receitas += amount;
+      else chartMap[monthKey].despesas += amount;
+    });
+
+    const sortedKeys = Object.keys(groups).sort().reverse();
+    const sortedChart = Object.values(chartMap).sort((a, b) => a.rawDate.localeCompare(b.rawDate));
+
+    return { groupedData: groups, chartData: sortedChart, sortedMonthKeys: sortedKeys };
+  }, [transactions, accounts]);
 
   const openModalForCreate = () => {
-    setCurrentTransaction({ id: null, description: '', amount: '', type: 'despesa', date: formatDateForInput(new Date()), categoryId: '' });
+    setCurrentTransaction({ 
+      id: null, 
+      description: '', 
+      amount: '', 
+      type: 'despesa', 
+      date: formatDateForInput(new Date()), 
+      categoryId: '', 
+      accountId: '' 
+    });
     setIsFormModalOpen(true);
   };
 
@@ -56,52 +110,41 @@ const TransactionsPage = () => {
     setIsFormModalOpen(true);
   };
 
-  const closeFormModal = () => setIsFormModalOpen(false);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const transactionDataForSupabase = {
+    const data = {
       description: currentTransaction.description,
-      amount: currentTransaction.amount,
+      amount: parseFloat(currentTransaction.amount),
       type: currentTransaction.type,
       date: currentTransaction.date,
       category_id: currentTransaction.categoryId || null,
+      account_id: currentTransaction.accountId || null,
     };
 
     try {
-      let error;
-      if (currentTransaction.id) {
-        const { error: updateError } = await supabase.from('transactions').update(transactionDataForSupabase).eq('id', currentTransaction.id);
-        error = updateError;
-      } else {
-        const { error: insertError } = await supabase.from('transactions').insert(transactionDataForSupabase);
-        error = insertError;
-      }
+      const { error } = currentTransaction.id 
+        ? await supabase.from('transactions').update(data).eq('id', currentTransaction.id)
+        : await supabase.from('transactions').insert([data]);
+
       if (error) throw error;
-      fetchData();
-      closeFormModal();
-    } catch (err) { 
-      console.error("Erro ao salvar transação:", err); 
+      await fetchData();
+      setIsFormModalOpen(false);
+    } catch (err) {
+      alert("Erro ao salvar: " + err.message);
     }
   };
 
-  const handleDeleteClick = (id) => {
-    setItemToDelete(id);
-    setShowDeleteModal(true);
-  };
-
   const confirmDelete = async () => {
-    if (itemToDelete) {
-      try {
-        const { error: deleteError } = await supabase.from('transactions').delete().eq('id', itemToDelete);
-        if (deleteError) throw deleteError;
-        fetchData();
-      } catch (err) {
-        console.error("Erro ao deletar transação:", err);
-      } finally {
-        setShowDeleteModal(false);
-        setItemToDelete(null);
-      }
+    if (!itemToDelete) return;
+    try {
+      const { error } = await supabase.from('transactions').delete().eq('id', itemToDelete);
+      if (error) throw error;
+      await fetchData();
+    } catch (err) {
+      console.error("Erro ao deletar:", err);
+    } finally {
+      setShowDeleteModal(false);
+      setItemToDelete(null);
     }
   };
 
@@ -109,85 +152,145 @@ const TransactionsPage = () => {
     <>
       <div className="d-flex align-items-center justify-content-between mb-4">
         <h1 className="h2">Transações</h1>
-        <Button onClick={openModalForCreate} icon={<Plus />}>Nova Transação</Button>
+        <div className="d-flex gap-2">
+          <Button variant={activeView === 'list' ? 'primary' : 'outline-primary'} onClick={() => setActiveView('list')}>
+            <List size={18} />
+          </Button>
+          <Button variant={activeView === 'chart' ? 'primary' : 'outline-primary'} onClick={() => setActiveView('chart')}>
+            <BarChart3 size={18} />
+          </Button>
+          <Button onClick={openModalForCreate} icon={<Plus />}>Nova</Button>
+        </div>
       </div>
-      {isLoading && <div className="text-center"><Spinner animation="border" /></div>}
-      {error && <Alert variant="danger">{error}</Alert>}
-      {!isLoading && !error && (
-        <Card className="shadow-sm">
-          <Table responsive striped bordered hover className="mb-0">
-            <thead className="table-light">
-              <tr>
-                <th>Descrição</th>
-                <th>Valor</th>
-                <th>Categoria</th>
-                <th>Data</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map(t => (
-                <tr key={t.id}>
-                  <td>{t.description}</td>
-                  <td className={t.type === 'receita' ? 'text-success' : 'text-danger'}>{formatCurrency(t.amount)}</td>
-                  <td>{t.categories?.name || 'N/A'}</td>
-                  <td>{new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</td>
-                  <td>
-                    <Button variant="outline-secondary" size="sm" onClick={() => openModalForEdit(t)} className="me-2"><Edit size={16} /></Button>
-                    <Button variant="outline-danger" size="sm" onClick={() => handleDeleteClick(t.id)}><Trash2 size={16} /></Button>
-                  </td>
-                </tr>
+
+      {isLoading ? (
+        <div className="text-center py-5"><Spinner animation="border" variant="primary" /></div>
+      ) : error ? (
+        <Alert variant="danger">{error}</Alert>
+      ) : (
+        <>
+          {activeView === 'chart' ? (
+            <Card className="shadow-sm p-4 mb-4 border-0">
+              <Card.Title className="mb-4">Fluxo Mensal (Faturas)</Card.Title>
+              <div style={{ width: '100%', height: 350 }}>
+                <ResponsiveContainer>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" />
+                    <YAxis tickFormatter={(val) => `R$ ${val}`} />
+                    <Tooltip formatter={(val) => formatCurrency(val)} />
+                    <Legend />
+                    <Bar dataKey="receitas" fill="#198754" name="Receitas" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="despesas" fill="#dc3545" name="Despesas" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          ) : (
+            <Tabs defaultActiveKey={sortedMonthKeys[0]} className="mb-4">
+              {sortedMonthKeys.map(key => (
+                <Tab 
+                  eventKey={key} 
+                  key={key} 
+                  title={new Date(key + '-02').toLocaleDateString('pt-BR', { month: 'short', year: '2-digit', timeZone: 'UTC' }).toUpperCase()}
+                >
+                  <Card className="shadow-sm border-0 mt-3">
+                    <Table responsive hover className="mb-0">
+                      <thead className="table-light">
+                        <tr>
+                          <th>Descrição</th>
+                          <th>Conta/Cartão</th>
+                          <th>Valor</th>
+                          <th>Data Compra</th>
+                          <th className="text-end">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {groupedData[key].map(t => (
+                          <tr key={t.id}>
+                            <td className="align-middle">
+                              {t.description} <br/>
+                              <small className="text-muted">{t.categories?.name || 'Sem categoria'}</small>
+                            </td>
+                            <td className="align-middle">
+                              {t.accounts?.type === 'credito' ? <CreditCard size={14} className="me-1 text-primary"/> : <Wallet size={14} className="me-1 text-success"/>}
+                              {t.accounts?.name || 'N/A'}
+                            </td>
+                            <td className={`align-middle fw-bold ${t.type === 'receita' ? 'text-success' : 'text-danger'}`}>
+                              {formatCurrency(t.amount)}
+                            </td>
+                            <td className="align-middle">{new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</td>
+                            <td className="text-end align-middle">
+                              <Button variant="link" size="sm" className="text-secondary" onClick={() => openModalForEdit(t)}><Edit size={16}/></Button>
+                              <Button variant="link" size="sm" className="text-danger" onClick={() => { setItemToDelete(t.id); setShowDeleteModal(true); }}><Trash2 size={16}/></Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  </Card>
+                </Tab>
               ))}
-            </tbody>
-          </Table>
-        </Card>
+            </Tabs>
+          )}
+          {transactions.length === 0 && <div className="text-center py-5 text-muted">Nenhuma transação cadastrada.</div>}
+        </>
       )}
+
       {isFormModalOpen && (
-        <Modal isOpen={isFormModalOpen} onClose={closeFormModal} title={currentTransaction?.id ? 'Editar Transação' : 'Nova Transação'}
-          footer={<><Button variant="secondary" onClick={closeFormModal}>Cancelar</Button><Button onClick={handleSubmit}>Salvar</Button></>}>
+        <Modal 
+          isOpen={isFormModalOpen} 
+          onClose={() => setIsFormModalOpen(false)} 
+          title={currentTransaction?.id ? 'Editar Transação' : 'Nova Transação'}
+          footer={<><Button variant="secondary" onClick={() => setIsFormModalOpen(false)}>Cancelar</Button><Button onClick={handleSubmit}>Salvar</Button></>}
+        >
           <Form onSubmit={handleSubmit}>
-            <Input id="description" label="Descrição" value={currentTransaction.description} onChange={(e) => setCurrentTransaction({ ...currentTransaction, description: e.target.value })} required />
+            <Input id="description" label="Descrição" value={currentTransaction?.description || ''} onChange={(e) => setCurrentTransaction({ ...currentTransaction, description: e.target.value })} required />
             <Row>
-              <Col md={6}><Input id="amount" label="Valor (R$)" type="number" step="0.01" value={currentTransaction.amount} onChange={(e) => setCurrentTransaction({ ...currentTransaction, amount: e.target.value })} required /></Col>
-              <Col md={6}><Input id="date" label="Data" type="date" value={currentTransaction.date} onChange={(e) => setCurrentTransaction({ ...currentTransaction, date: e.target.value })} required /></Col>
+              <Col md={6}><Input id="amount" label="Valor" type="number" step="0.01" value={currentTransaction?.amount || ''} onChange={(e) => setCurrentTransaction({ ...currentTransaction, amount: e.target.value })} required /></Col>
+              <Col md={6}><Input id="date" label="Data da Compra" type="date" value={currentTransaction?.date || ''} onChange={(e) => setCurrentTransaction({ ...currentTransaction, date: e.target.value })} required /></Col>
             </Row>
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Tipo</Form.Label>
-                  <Form.Select value={currentTransaction.type} onChange={(e) => setCurrentTransaction({ ...currentTransaction, type: e.target.value })}>
-                    <option value="despesa">Despesa</option>
-                    <option value="receita">Receita</option>
+                  <Form.Label>Pagar com:</Form.Label>
+                  <Form.Select value={currentTransaction?.accountId || ''} onChange={(e) => setCurrentTransaction({ ...currentTransaction, accountId: e.target.value })} required>
+                    <option value="">Selecione...</option>
+                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.type})</option>)}
                   </Form.Select>
                 </Form.Group>
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                <Form.Label>Categoria</Form.Label>
-                <Form.Select 
-                    value={currentTransaction.categoryId || ''} 
-                    onChange={(e) => setCurrentTransaction({...currentTransaction, categoryId: e.target.value })}
-                >
+                  <Form.Label>Categoria</Form.Label>
+                  <Form.Select value={currentTransaction?.categoryId || ''} onChange={(e) => setCurrentTransaction({ ...currentTransaction, categoryId: e.target.value })}>
                     <option value="">Selecione...</option>
-                    {categories?.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                </Form.Select>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </Form.Select>
                 </Form.Group>
               </Col>
             </Row>
+            <Form.Group>
+              <Form.Label>Tipo</Form.Label>
+              <div className="d-flex gap-3">
+                <Form.Check type="radio" label="Despesa" name="type" checked={currentTransaction?.type === 'despesa'} onChange={() => setCurrentTransaction({...currentTransaction, type: 'despesa'})} />
+                <Form.Check type="radio" label="Receita" name="type" checked={currentTransaction?.type === 'receita'} onChange={() => setCurrentTransaction({...currentTransaction, type: 'receita'})} />
+              </div>
+            </Form.Group>
           </Form>
         </Modal>
       )}
-      <Modal 
-        isOpen={showDeleteModal} 
-        onClose={() => setShowDeleteModal(false)} 
-        title="Confirmar Exclusão"
-        footer={<>
-            <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</Button>
-            <Button variant="danger" onClick={confirmDelete}>Deletar</Button>
-        </>}
-      >
-        <p>Tem certeza que deseja deletar esta transação?</p>
-      </Modal>
+
+      {showDeleteModal && (
+        <Modal 
+          isOpen={showDeleteModal} 
+          onClose={() => setShowDeleteModal(false)} 
+          title="Confirmar Exclusão" 
+          footer={<><Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</Button><Button variant="danger" onClick={confirmDelete}>Excluir</Button></>}
+        >
+          <p>Tem certeza que deseja apagar esta transação?</p>
+        </Modal>
+      )}
     </>
   );
 };
