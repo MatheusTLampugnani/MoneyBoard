@@ -2,9 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import BalanceCard from '../components/dashboard/BalanceCard';
-import TransactionsChart from '../components/dashboard/TransactionsChart'; // Importação do gráfico
+import TransactionsChart from '../components/dashboard/TransactionsChart';
 import { Spinner, Row, Col, Alert, Card } from 'react-bootstrap';
-import { Package, TrendingUp, DollarSign, Clock } from 'lucide-react';
+// ADICIONADO: ShoppingCart
+import { Package, TrendingUp, Clock, Wallet, ShoppingCart } from 'lucide-react'; 
 
 const DashboardPage = () => {
   const { user, isCricasUser } = useAuth();
@@ -50,11 +51,14 @@ const DashboardPage = () => {
     fetchAllData();
   }, [isCricasUser]);
 
+  const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
   const stats = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getUTCMonth();
     const currentYear = now.getUTCFullYear();
     const categoryExpenses = {};
+    
     const personal = data.transactions.reduce((acc, t) => {
       const transactionDate = new Date(t.date);
       if (transactionDate.getUTCMonth() === currentMonth && transactionDate.getUTCFullYear() === currentYear) {
@@ -73,20 +77,28 @@ const DashboardPage = () => {
     const personalPieData = Object.entries(categoryExpenses).map(([name, value]) => ({ name, value }));
     const personalBarData = [{ name: 'Mês Atual', receitas: personal.income, despesas: personal.expense }];
 
-    const inventoryDist = {};
     const store = data.products.reduce((acc, p) => {
         const cost = parseFloat(p.cost_price || 0);
+        const expected = parseFloat(p.expected_price || 0);
         const qty = parseInt(p.quantity || 0);
 
         if (p.status === 'estoque') {
           acc.invested += (cost * qty);
           acc.stockCount += qty;
+          acc.expectedProfit += (expected - cost) * qty;
+          
+          const cat = p.category || 'Sem Categoria';
+          acc.categories[cat] = (acc.categories[cat] || 0) + qty;
         }
         return acc;
-    }, { invested: 0, stockCount: 0, revenue: 0, pending: 0 });
+    // ADICIONADO: totalSalesValue e itemsSold na inicialização
+    }, { invested: 0, stockCount: 0, expectedProfit: 0, categories: {}, revenue: 0, pending: 0, totalSalesValue: 0, itemsSold: 0 });
 
     data.sales.forEach(s => {
       store.revenue += parseFloat(s.down_payment || 0);
+      // ADICIONADO: Cálculos de faturamento total e quantidade
+      store.totalSalesValue += parseFloat(s.final_sale_price || 0); 
+      store.itemsSold += parseInt(s.quantity || 1);
     });
 
     data.installments.forEach(i => {
@@ -94,7 +106,7 @@ const DashboardPage = () => {
       else store.pending += parseFloat(i.amount || 0);
     });
 
-    const storePieData = Object.entries(inventoryDist).map(([name, value]) => ({ name, value }));
+    const storePieData = Object.entries(store.categories).map(([name, value]) => ({ name, value }));
     const storeBarData = [{ name: 'Fluxo de Caixa', receitas: store.revenue, despesas: store.invested }];
 
     return { 
@@ -134,47 +146,77 @@ const DashboardPage = () => {
         </>
       ) : (
         <>
-          <h5 className="mb-3 text-primary">LOJA CRICASTECH</h5>
+          <h5 className="mb-3 text-primary fw-bold">VISÃO GERAL - CRICASTECH</h5>
+          
+          {/* LINHA 1: FATURAMENTO E RECEBIMENTOS */}
+          <Row className="g-3 mb-3">
+            <Col md={12} lg={4}>
+              <Card className="p-3 border-0 shadow-sm bg-info text-white h-100">
+                <div className="d-flex justify-content-between">
+                  <small className="fw-bold opacity-75">FATURAMENTO TOTAL</small>
+                  <ShoppingCart size={20} className="opacity-75" />
+                </div>
+                <h3 className="fw-bold mt-2 mb-0">{formatCurrency(stats.store.totalSalesValue)}</h3>
+                <small className="opacity-75 d-block mt-1">{stats.store.itemsSold} itens vendidos</small>
+              </Card>
+            </Col>
+
+            <Col md={6} lg={4}>
+              <Card className="p-3 border-0 shadow-sm bg-primary text-white h-100">
+                <div className="d-flex justify-content-between">
+                  <small className="fw-bold opacity-75">TOTAL EM CAIXA</small>
+                  <Wallet size={20} className="opacity-50" />
+                </div>
+                <h3 className="fw-bold mt-2 mb-0">{formatCurrency(stats.store.revenue)}</h3>
+                <small className="opacity-75 d-block mt-1">Entradas + Parcelas pagas</small>
+              </Card>
+            </Col>
+
+            <Col md={6} lg={4}>
+              <Card className="p-3 border-0 shadow-sm bg-warning text-dark h-100">
+                <div className="d-flex justify-content-between">
+                  <small className="fw-bold opacity-75">A RECEBER</small>
+                  <Clock size={20} className="opacity-50" />
+                </div>
+                <h3 className="fw-bold mt-2 mb-0">{formatCurrency(stats.store.pending)}</h3>
+                <small className="opacity-75 d-block mt-1">Parcelas pendentes</small>
+              </Card>
+            </Col>
+          </Row>
+
+          {/* LINHA 2: ESTOQUE E INVESTIMENTOS */}
           <Row className="g-3 mb-4">
-            <Col md={3}>
-              <Card className="border-0 shadow-sm p-3 text-center h-100">
-                <Package className="text-primary mb-2 mx-auto" size={28} />
-                <small className="text-muted d-block text-uppercase">Em Estoque</small>
-                <h3 className="mb-0 fw-bold">{stats.store.stockCount}</h3>
+            <Col md={6} lg={6}>
+              <Card className="p-3 border-0 shadow-sm bg-white h-100">
+                <div className="d-flex justify-content-between">
+                  <small className="fw-bold text-muted">TOTAL INVESTIDO</small>
+                  <Package size={20} className="text-muted" />
+                </div>
+                <h3 className="fw-bold mt-2 mb-0 text-dark">{formatCurrency(stats.store.invested)}</h3>
+                <small className="text-muted d-block mt-1">{stats.store.stockCount} itens em estoque</small>
               </Card>
             </Col>
-            <Col md={3}>
-              <Card className="border-0 shadow-sm p-3 text-center h-100">
-                <DollarSign className="text-danger mb-2 mx-auto" size={28} />
-                <small className="text-muted d-block text-uppercase">Total Investido</small>
-                <h4 className="mb-0 fw-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.store.invested)}</h4>
-              </Card>
-            </Col>
-            <Col md={3}>
-              <Card className="border-0 shadow-sm p-3 text-center h-100">
-                <TrendingUp className="text-success mb-2 mx-auto" size={28} />
-                <small className="text-muted d-block text-uppercase">Já Recebido</small>
-                <h4 className="mb-0 fw-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.store.revenue)}</h4>
-              </Card>
-            </Col>
-            <Col md={3}>
-              <Card className="border-0 shadow-sm p-3 text-center h-100">
-                <Clock className="text-warning mb-2 mx-auto" size={28} />
-                <small className="text-muted d-block text-uppercase">Pendente (Parcelas)</small>
-                <h4 className="mb-0 fw-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.store.pending)}</h4>
+
+            <Col md={6} lg={6}>
+              <Card className="p-3 border-0 shadow-sm bg-success text-white h-100">
+                <div className="d-flex justify-content-between">
+                  <small className="fw-bold opacity-75">LUCRO ESPERADO</small>
+                  <TrendingUp size={20} className="opacity-50" />
+                </div>
+                <h3 className="fw-bold mt-2 mb-0">{formatCurrency(stats.store.expectedProfit)}</h3>
+                <small className="opacity-75 d-block mt-1">Do estoque atual</small>
               </Card>
             </Col>
           </Row>
           
-          {/* Gráficos para a Loja */}
           <TransactionsChart 
             barChartData={stats.storeBarData} 
             pieChartData={stats.storePieData} 
           />
           <Row className="mt-2 px-3">
              <Col className="text-muted small">
-                * O gráfico de barras compara o <strong>Total Recebido</strong> vs <strong>Total Investido</strong> em estoque atual. 
-                O gráfico de pizza mostra a <strong>Distribuição de Produtos</strong> por categoria.
+               * O gráfico de barras compara o <strong>Total Recebido (Caixa)</strong> com o <strong>Total Investido</strong> em estoque no momento. 
+               O gráfico de pizza reflete a <strong>Distribuição em Quantidade</strong> das categorias no seu estoque.
              </Col>
           </Row>
         </>

@@ -20,6 +20,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
 
   const commonLinks = [
     { to: '/', text: 'Dashboard', icon: LayoutDashboard },
+    { to: '/categories', text: 'Categorias', icon: Shapes },
   ];
 
   const personalLinks = [
@@ -33,6 +34,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
     { to: '/inventory', text: 'Meu Estoque', icon: Package },
     { to: '/sold', text: 'Produtos Vendidos', icon: ShoppingBag },
     { to: '/new-sale', text: 'Registrar Venda', icon: Tag },
+    { to: '/cash-control', text: 'Controle de Caixa', icon: Banknote },
   ];
 
   return (

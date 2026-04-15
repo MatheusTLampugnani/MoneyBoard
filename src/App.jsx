@@ -24,6 +24,7 @@ import NewSalePage from './pages/NewSalePage';
 import SoldPage from './pages/SoldPage';
 import GenerateArtPage from './pages/GenerateArtPage';
 import GenerateReceiptPage from './pages/GenerateReceiptPage';
+import CashControlPage from './pages/CashControlPage';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -37,7 +38,7 @@ const ProtectedRoute = ({ children }) => {
 };
 
 function App() {
-  const { isCricasUser } = useAuth(); // CORREÇÃO: Variável agora definida!
+  const { isCricasUser } = useAuth();
 
   return (
     <Routes>
@@ -45,19 +46,17 @@ function App() {
       <Route path="/register" element={<RegisterPage />} />
 
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-        <Route path="/" element={<DashboardPage />} />
+        <Route path="/" element={<DashboardPage />} />        
+        <Route path="/categories" element={<CategoriesPage />} />
 
-        {/* Rotas de Finanças (Escondidas para Cricas) */}
         {!isCricasUser && (
           <>
             <Route path="/transactions" element={<TransactionsPage />} />
-            <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/goals" element={<GoalsPage />} />
             <Route path="/accounts" element={<AccountsPage />} />
           </>
         )}
 
-        {/* Rotas Loja (Apenas para Cricas) */}
         {isCricasUser && (
           <>
             <Route path="/inventory" element={<InventoryPage />} />
@@ -66,6 +65,7 @@ function App() {
             <Route path="/sold" element={<SoldPage />} />
             <Route path="/generate-art" element={<GenerateArtPage />} />
             <Route path="/generate-receipt" element={<GenerateReceiptPage />} />
+            <Route path="/cash-control" element={<CashControlPage />} />
           </>
         )}
       </Route>
