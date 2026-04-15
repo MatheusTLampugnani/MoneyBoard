@@ -4,7 +4,7 @@ import { Form, Row, Col, Card } from 'react-bootstrap';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { RefreshCcw, Trash2 } from 'lucide-react';
+import { RefreshCcw, Trash2, User } from 'lucide-react';
 
 const NewSalePage = () => {
   const navigate = useNavigate();
@@ -13,6 +13,7 @@ const NewSalePage = () => {
   const [autoParams, setAutoParams] = useState({ count: '', firstDate: '' });
   const [sale, setSale] = useState({
     productId: location.state?.productId || '',
+    customerName: '', // NOVO CAMPO: Nome do Cliente
     quantity: 1,
     finalPrice: '',
     downPayment: '0',
@@ -24,7 +25,6 @@ const NewSalePage = () => {
       const { data } = await supabase.from('products').select('*').eq('status', 'estoque');
       setProducts(data || []);
       
-      // Se vier um ID via navegação (botão Vender do estoque), já busca o preço inicial
       if (location.state?.productId && data) {
         const product = data.find(p => p.id === location.state.productId);
         if (product) {
@@ -37,7 +37,6 @@ const NewSalePage = () => {
 
   const selectedProduct = products.find(p => p.id === sale.productId);
 
-  // FUNÇÃO: Ao trocar o produto, sugere o preço esperado total
   const handleProductChange = (id) => {
     const product = products.find(p => p.id === id);
     if (product) {
@@ -48,7 +47,6 @@ const NewSalePage = () => {
     }
   };
 
-  // FUNÇÃO: Ao trocar a quantidade, recalcula o preço esperado total
   const handleQuantityChange = (qty) => {
     const quantity = parseInt(qty) || 1;
     let newFinalPrice = sale.finalPrice;
@@ -118,8 +116,10 @@ const NewSalePage = () => {
     }
 
     try {
+      // INSERE A VENDA COM O NOME DO CLIENTE
       const { data: saleData, error: sErr } = await supabase.from('sales').insert([{
         product_id: sale.productId,
+        customer_name: sale.customerName || 'Não informado', // Salva o nome ou um padrão
         quantity: quantitySold,
         final_sale_price: sale.finalPrice,
         down_payment: sale.downPayment
@@ -160,24 +160,45 @@ const NewSalePage = () => {
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-      <Card className="p-4 shadow-sm border-0">
-        <h3 className="mb-4">Registrar Venda - CRICASTECH</h3>
+      <Card className="p-4 shadow-sm border-0 rounded-4">
+        <h3 className="mb-4 text-dark fw-bold">Registrar Venda - CRICASTECH</h3>
         <Form onSubmit={handleSale}>
-          <Form.Group className="mb-3">
-            <Form.Label className="fw-bold">Selecione o Produto</Form.Label>
-            <Form.Select 
-              value={sale.productId} 
-              onChange={e => handleProductChange(e.target.value)} 
-              required
-            >
-              <option value="">Escolher...</option>
-              {products.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.name} (Qtd: {p.quantity})
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
+          
+          <Row>
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label className="fw-bold">Selecione o Produto</Form.Label>
+                <Form.Select 
+                  value={sale.productId} 
+                  onChange={e => handleProductChange(e.target.value)} 
+                  required
+                >
+                  <option value="">Escolher...</option>
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} (Qtd: {p.quantity})
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            
+            {/* NOVO CAMPO: NOME DO CLIENTE */}
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label className="fw-bold d-flex align-items-center">
+                  <User size={16} className="me-1 text-muted"/> Nome do Cliente
+                </Form.Label>
+                <Form.Control 
+                  type="text"
+                  placeholder="Ex: Matheus Lampugnani"
+                  value={sale.customerName}
+                  onChange={e => setSale({...sale, customerName: e.target.value})}
+                  required
+                />
+              </Form.Group>
+            </Col>
+          </Row>
 
           <Row>
             <Col md={4}>
@@ -221,7 +242,7 @@ const NewSalePage = () => {
 
           <Card className="bg-light border-0 mt-4 mb-4">
             <Card.Body>
-              <h5 className="mb-3 d-flex align-items-center">
+              <h5 className="mb-3 d-flex align-items-center fw-bold">
                 <RefreshCcw size={20} className="me-2 text-primary"/> Gerador de Parcelas
               </h5>
               <Row className="align-items-end">
@@ -258,7 +279,7 @@ const NewSalePage = () => {
 
           {sale.installments.length > 0 && (
             <div className="mt-2">
-              <h6 className="text-muted mb-3">Conferência de Parcelas:</h6>
+              <h6 className="text-muted mb-3 fw-bold">Conferência de Parcelas:</h6>
               {sale.installments.map((inst, index) => (
                 <Row key={index} className="mb-2 align-items-center g-2 border-bottom pb-2">
                   <Col md={1} className="text-center fw-bold text-primary">{index + 1}ª</Col>
@@ -290,7 +311,7 @@ const NewSalePage = () => {
                     />
                   </Col>
                   <Col md={4}>
-                    <Form.Label>Meio de Pagamento</Form.Label>
+                    <Form.Label className="small fw-bold text-muted">Meio de Pagamento</Form.Label>
                     <Form.Select 
                       value={inst.method} 
                       onChange={e => {
