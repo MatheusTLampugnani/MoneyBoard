@@ -8,18 +8,6 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  window.ativarCricas = () => {
-    setIsAuthenticated(true);
-    setIsCricasUser(true);
-    console.log("%c🟢 Modo CRICASTECH Ativado!", "color: green; font-weight: bold; font-size: 14px;");
-  };
-
-  window.desativarCricas = () => {
-    setIsAuthenticated(true);
-    setIsCricasUser(false);
-    console.log("%c🔴 Modo Finanças Pessoais Ativado!", "color: red; font-weight: bold; font-size: 14px;");
-  };
-
   useEffect(() => {
     const getInitialSession = async () => {
       setIsLoading(true);
