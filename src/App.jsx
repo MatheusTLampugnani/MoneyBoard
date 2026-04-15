@@ -3,17 +3,21 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { Spinner } from 'react-bootstrap';
 
+// Layout e Componentes
 import Layout from './components/layout/Layout';
 
+// Páginas Públicas
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 
+// Páginas Comuns
 import DashboardPage from './pages/DashboardPage';
 import TransactionsPage from './pages/TransactionsPage';
 import CategoriesPage from './pages/CategoriesPage';
 import GoalsPage from './pages/GoalsPage';
 import AccountsPage from './pages/AccountsPage';
 
+// Páginas CRICASTECH
 import InventoryPage from './pages/InventoryPage';
 import NewProductPage from './pages/NewProductPage';
 import NewSalePage from './pages/NewSalePage';
@@ -23,47 +27,27 @@ import GenerateReceiptPage from './pages/GenerateReceiptPage';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          width: '100vw',
-        }}
-      >
-        <Spinner animation="border" variant="primary" role="status">
-          <span className="visually-hidden">Carregando...</span>
-        </Spinner>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
+  if (isLoading) return (
+    <div className="vh-100 d-flex align-items-center justify-content-center">
+      <Spinner animation="border" variant="primary" />
+    </div>
+  );
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   return children;
 };
 
 function App() {
-  const { isCricasUser } = useAuth(); 
+  const { isCricasUser } = useAuth(); // CORREÇÃO: Variável agora definida!
 
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      <Route
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
+
+      <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<DashboardPage />} />
+
+        {/* Rotas de Finanças (Escondidas para Cricas) */}
         {!isCricasUser && (
           <>
             <Route path="/transactions" element={<TransactionsPage />} />
@@ -72,6 +56,8 @@ function App() {
             <Route path="/accounts" element={<AccountsPage />} />
           </>
         )}
+
+        {/* Rotas Loja (Apenas para Cricas) */}
         {isCricasUser && (
           <>
             <Route path="/inventory" element={<InventoryPage />} />

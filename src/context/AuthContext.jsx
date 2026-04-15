@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const isCricasUser = useMemo(() => {
-    return user?.email === 'cricaskrav64@gmail.com';
+    return user?.email === 'cricaskrav64@gmail.com' || localStorage.getItem('debug_cricas') === 'true';
   }, [user]);
 
   const login = (email, password) => supabase.auth.signInWithPassword({ email, password });

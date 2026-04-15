@@ -1,0 +1,51 @@
+.main-header {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #eef0f2;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.header-divider {
+  width: 1px;
+  height: 24px;
+  background-color: #dee2e6;
+}
+
+.user-avatar-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.1rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.user-name-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2d3436;
+}
+
+.user-status-text {
+  font-size: 0.75rem;
+  color: #00b894;
+  display: block;
+  line-height: 1;
+}
+
+.custom-dropdown-toggle::after {
+  display: none !important;
+}
+
+.hover-bg-light:hover {
+  background-color: #f8f9fa;
+  transition: 0.2s;
+}

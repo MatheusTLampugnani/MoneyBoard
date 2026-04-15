@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Form, Row, Col, Card, InputGroup } from 'react-bootstrap';
+import { Form, Row, Col, Card } from 'react-bootstrap';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Calendar, RefreshCcw, Trash2 } from 'lucide-react';
+import { RefreshCcw, Trash2 } from 'lucide-react';
 
 const NewSalePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [products, setProducts] = useState([]);
-  const [autoParams, setAutoParams] = useState({ count: '', firstDate: '' }); // Parâmetros para geração automática
+  const [autoParams, setAutoParams] = useState({ count: '', firstDate: '' });
   const [sale, setSale] = useState({
     productId: location.state?.productId || '',
+    quantity: 1,
     finalPrice: '',
     downPayment: '0',
     installments: []
@@ -22,11 +23,43 @@ const NewSalePage = () => {
     const loadProducts = async () => {
       const { data } = await supabase.from('products').select('*').eq('status', 'estoque');
       setProducts(data || []);
+      
+      // Se vier um ID via navegação (botão Vender do estoque), já busca o preço inicial
+      if (location.state?.productId && data) {
+        const product = data.find(p => p.id === location.state.productId);
+        if (product) {
+          setSale(prev => ({ ...prev, finalPrice: product.expected_price }));
+        }
+      }
     };
     loadProducts();
-  }, []);
+  }, [location.state]);
 
-  // Lógica de Geração Automática
+  const selectedProduct = products.find(p => p.id === sale.productId);
+
+  // FUNÇÃO: Ao trocar o produto, sugere o preço esperado total
+  const handleProductChange = (id) => {
+    const product = products.find(p => p.id === id);
+    if (product) {
+      const suggestedPrice = (parseFloat(product.expected_price) * sale.quantity).toFixed(2);
+      setSale({ ...sale, productId: id, finalPrice: suggestedPrice });
+    } else {
+      setSale({ ...sale, productId: id, finalPrice: '' });
+    }
+  };
+
+  // FUNÇÃO: Ao trocar a quantidade, recalcula o preço esperado total
+  const handleQuantityChange = (qty) => {
+    const quantity = parseInt(qty) || 1;
+    let newFinalPrice = sale.finalPrice;
+
+    if (selectedProduct) {
+      newFinalPrice = (parseFloat(selectedProduct.expected_price) * quantity).toFixed(2);
+    }
+
+    setSale({ ...sale, quantity: qty, finalPrice: newFinalPrice });
+  };
+
   const generateInstallments = () => {
     const numInstallments = parseInt(autoParams.count);
     const firstDate = new Date(autoParams.firstDate);
@@ -42,12 +75,12 @@ const NewSalePage = () => {
 
     for (let i = 0; i < numInstallments; i++) {
       const dueDate = new Date(firstDate);
-      dueDate.setMonth(dueDate.getMonth() + i); // Adiciona 1 mês a cada iteração
+      dueDate.setMonth(dueDate.getMonth() + i);
       
       generated.push({
         date: dueDate.toISOString().split('T')[0],
         value: valuePerInstallment,
-        method: 'Pix' // Valor padrão
+        method: 'Pix'
       });
     }
 
@@ -61,6 +94,24 @@ const NewSalePage = () => {
 
   const handleSale = async (e) => {
     e.preventDefault();
+    const quantitySold = parseInt(sale.quantity, 10);
+    const availableQty = parseInt(selectedProduct?.quantity || 0, 10);
+
+    if (!selectedProduct) {
+      alert('Selecione um produto válido.');
+      return;
+    }
+
+    if (isNaN(quantitySold) || quantitySold <= 0) {
+      alert('Informe uma quantidade válida para venda.');
+      return;
+    }
+
+    if (quantitySold > availableQty) {
+      alert(`Quantidade indisponível. Há apenas ${availableQty} unidade(s) em estoque.`);
+      return;
+    }
+
     if (sale.installments.length === 0 && (parseFloat(sale.finalPrice) > parseFloat(sale.downPayment))) {
         alert("O valor da venda é maior que a entrada, mas não há parcelas geradas.");
         return;
@@ -69,6 +120,7 @@ const NewSalePage = () => {
     try {
       const { data: saleData, error: sErr } = await supabase.from('sales').insert([{
         product_id: sale.productId,
+        quantity: quantitySold,
         final_sale_price: sale.finalPrice,
         down_payment: sale.downPayment
       }]).select().single();
@@ -85,10 +137,25 @@ const NewSalePage = () => {
         await supabase.from('sale_installments').insert(installments);
       }
 
-      await supabase.from('products').update({ status: 'vendido' }).eq('id', sale.productId);
+      const remainingQty = availableQty - quantitySold;
+      const updatePayload = { quantity: remainingQty };
+      
+      if (remainingQty <= 0) {
+        updatePayload.status = 'vendido';
+      }
+
+      const { error: uErr } = await supabase
+        .from('products')
+        .update(updatePayload)
+        .eq('id', sale.productId);
+
+      if (uErr) throw uErr;
+
       alert("Venda registrada com sucesso!");
       navigate('/sold');
-    } catch (err) { alert(err.message); }
+    } catch (err) { 
+      alert("Erro ao processar venda: " + err.message); 
+    }
   };
 
   return (
@@ -98,25 +165,90 @@ const NewSalePage = () => {
         <Form onSubmit={handleSale}>
           <Form.Group className="mb-3">
             <Form.Label className="fw-bold">Selecione o Produto</Form.Label>
-            <Form.Select value={sale.productId} onChange={e => setSale({...sale, productId: e.target.value})} required>
+            <Form.Select 
+              value={sale.productId} 
+              onChange={e => handleProductChange(e.target.value)} 
+              required
+            >
               <option value="">Escolher...</option>
-              {products.map(p => <option key={p.id} value={p.id}>{p.name} (Custo: {p.cost_price})</option>)}
+              {products.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.name} (Qtd: {p.quantity})
+                </option>
+              ))}
             </Form.Select>
           </Form.Group>
 
           <Row>
-            <Col md={6}><Input label="Preço de Venda Final (R$)" type="number" step="0.01" value={sale.finalPrice} onChange={e => setSale({...sale, finalPrice: e.target.value})} required /></Col>
-            <Col md={6}><Input label="Valor Recebido à Vista (Entrada)" type="number" step="0.01" value={sale.downPayment} onChange={e => setSale({...sale, downPayment: e.target.value})} /></Col>
+            <Col md={4}>
+              <Input 
+                label="Quantidade Vendida" 
+                type="number" 
+                min="1" 
+                max={selectedProduct?.quantity || ''} 
+                value={sale.quantity} 
+                onChange={e => handleQuantityChange(e.target.value)} 
+                required 
+              />
+            </Col>
+            <Col md={4}>
+              <Input 
+                label="Preço de Venda Final (R$)" 
+                type="number" 
+                step="0.01" 
+                value={sale.finalPrice} 
+                onChange={e => setSale({...sale, finalPrice: e.target.value})} 
+                required 
+              />
+              <small className="text-muted">Sugestão baseada no preço esperado</small>
+            </Col>
+            <Col md={4}>
+              <Input 
+                label="Entrada / À Vista" 
+                type="number" 
+                step="0.01" 
+                value={sale.downPayment} 
+                onChange={e => setSale({...sale, downPayment: e.target.value})} 
+              />
+            </Col>
           </Row>
+          
+          {selectedProduct && (
+            <div className="mt-2 mb-3 text-muted">
+              Estoque disponível: <strong>{selectedProduct.quantity} unidade(s)</strong>
+            </div>
+          )}
 
           <Card className="bg-light border-0 mt-4 mb-4">
             <Card.Body>
-              <h5 className="mb-3 d-flex align-items-center"><RefreshCcw size={20} className="me-2 text-primary"/> Gerador de Parcelas</h5>
+              <h5 className="mb-3 d-flex align-items-center">
+                <RefreshCcw size={20} className="me-2 text-primary"/> Gerador de Parcelas
+              </h5>
               <Row className="align-items-end">
-                <Col md={4}><Input label="Número de Parcelas" type="number" value={autoParams.count} onChange={e => setAutoParams({...autoParams, count: e.target.value})} /></Col>
-                <Col md={4}><Input label="Data da 1ª Parcela" type="date" value={autoParams.firstDate} onChange={e => setAutoParams({...autoParams, firstDate: e.target.value})} /></Col>
+                <Col md={4}>
+                  <Input 
+                    label="Número de Parcelas" 
+                    type="number" 
+                    value={autoParams.count} 
+                    onChange={e => setAutoParams({...autoParams, count: e.target.value})} 
+                  />
+                </Col>
+                <Col md={4}>
+                  <Input 
+                    label="Data da 1ª Parcela" 
+                    type="date" 
+                    value={autoParams.firstDate} 
+                    onChange={e => setAutoParams({...autoParams, firstDate: e.target.value})} 
+                  />
+                </Col>
                 <Col md={4} className="mb-3">
-                  <Button variant="primary" type="button" className="w-100" onClick={generateInstallments} disabled={!autoParams.count || !autoParams.firstDate}>
+                  <Button 
+                    variant="primary" 
+                    type="button" 
+                    className="w-100" 
+                    onClick={generateInstallments} 
+                    disabled={!autoParams.count || !autoParams.firstDate}
+                  >
                     Gerar Automaticamente
                   </Button>
                 </Col>
@@ -130,22 +262,56 @@ const NewSalePage = () => {
               {sale.installments.map((inst, index) => (
                 <Row key={index} className="mb-2 align-items-center g-2 border-bottom pb-2">
                   <Col md={1} className="text-center fw-bold text-primary">{index + 1}ª</Col>
-                  <Col md={3}><Input label="Vencimento" type="date" value={inst.date} onChange={e => {
-                    const newInst = [...sale.installments]; newInst[index].date = e.target.value; setSale({...sale, installments: newInst});
-                  }} required /></Col>
-                  <Col md={3}><Input label="Valor (R$)" type="number" step="0.01" value={inst.value} onChange={e => {
-                    const newInst = [...sale.installments]; newInst[index].value = e.target.value; setSale({...sale, installments: newInst});
-                  }} required /></Col>
+                  <Col md={3}>
+                    <Input 
+                      label="Vencimento" 
+                      type="date" 
+                      value={inst.date} 
+                      onChange={e => {
+                        const newInst = [...sale.installments];
+                        newInst[index].date = e.target.value;
+                        setSale({...sale, installments: newInst});
+                      }} 
+                      required 
+                    />
+                  </Col>
+                  <Col md={3}>
+                    <Input 
+                      label="Valor (R$)" 
+                      type="number" 
+                      step="0.01" 
+                      value={inst.value} 
+                      onChange={e => {
+                        const newInst = [...sale.installments];
+                        newInst[index].value = e.target.value;
+                        setSale({...sale, installments: newInst});
+                      }} 
+                      required 
+                    />
+                  </Col>
                   <Col md={4}>
                     <Form.Label>Meio de Pagamento</Form.Label>
-                    <Form.Select value={inst.method} onChange={e => {
-                       const newInst = [...sale.installments]; newInst[index].method = e.target.value; setSale({...sale, installments: newInst});
-                    }}>
-                      <option>Pix</option><option>Dinheiro</option><option>Cartão</option>
+                    <Form.Select 
+                      value={inst.method} 
+                      onChange={e => {
+                        const newInst = [...sale.installments];
+                        newInst[index].method = e.target.value;
+                        setSale({...sale, installments: newInst});
+                      }}
+                    >
+                      <option>Pix</option>
+                      <option>Dinheiro</option>
+                      <option>Cartão</option>
                     </Form.Select>
                   </Col>
                   <Col md={1} className="text-end pt-3">
-                    <Button variant="link" className="text-danger p-0" onClick={() => removeInstallment(index)}><Trash2 size={20}/></Button>
+                    <Button 
+                      variant="link" 
+                      className="text-danger p-0" 
+                      onClick={() => removeInstallment(index)}
+                    >
+                      <Trash2 size={20}/>
+                    </Button>
                   </Col>
                 </Row>
               ))}
@@ -153,7 +319,9 @@ const NewSalePage = () => {
           )}
 
           <div className="mt-5">
-            <Button type="submit" className="w-100 py-3 fw-bold" size="lg">Concluir Venda</Button>
+            <Button type="submit" className="w-100 py-3 fw-bold" size="lg">
+              Concluir Venda
+            </Button>
           </div>
         </Form>
       </Card>

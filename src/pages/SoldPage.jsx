@@ -1,133 +1,96 @@
-// src/pages/SoldPage.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Table, Card, Row, Col, Spinner, Badge } from 'react-bootstrap';
-import { FileText } from 'lucide-react';
+import { Table, Card, Badge, Spinner, Row, Col, Modal, ListGroup, Alert } from 'react-bootstrap';
+import { FileText, Eye, ShoppingCart, CheckCircle, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-// Importação que estava faltando:
-import Button from '../components/common/Button';
+import Button from '../components/common/Button'; // CORREÇÃO: Importação corrigida!
 
 const SoldPage = () => {
-  const [data, setData] = useState({ sales: [], stats: {} });
+  const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedSale, setSelectedSale] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchSold = async () => {
-      setLoading(true);
-      try {
-        // Busca as vendas, produtos relacionados e parcelas
-        const { data: sales, error } = await supabase
-          .from('sales')
-          .select('*, products(*), sale_installments(*)')
-          .order('sale_date', { ascending: false });
+  const fetchSales = async () => {
+    try {
+      const { data } = await supabase.from('sales').select('*, products (*), sale_installments (*)').order('sale_date', { ascending: false });
+      setSales(data || []);
+    } finally { setLoading(false); }
+  };
 
-        if (error) throw error;
-
-        // Calcula as estatísticas para o dashboard da loja
-        const stats = sales?.reduce((acc, s) => {
-          const valorVenda = parseFloat(s.final_sale_price || 0);
-          const custoProduto = parseFloat(s.products?.cost_price || 0);
-          
-          acc.totalVenda += valorVenda;
-          acc.totalCusto += custoProduto;
-          acc.recebido += parseFloat(s.down_payment || 0);
-
-          s.sale_installments?.forEach(i => {
-            if (i.status === 'pago') acc.recebido += parseFloat(i.amount || 0);
-            else acc.pendente += parseFloat(i.amount || 0);
-          });
-          return acc;
-        }, { totalVenda: 0, totalCusto: 0, recebido: 0, pendente: 0 }) || {};
-
-        setData({ sales: sales || [], stats });
-      } catch (err) {
-        console.error("Erro ao carregar vendas:", err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSold();
-  }, []);
+  useEffect(() => { fetchSales(); }, []);
 
   const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-  if (loading) return <div className="text-center py-5"><Spinner animation="border" variant="primary" /></div>;
-
   return (
     <>
-      <h2 className="mb-4">Produtos Vendidos</h2>
-      
-      {/* Dashboard de Vendas da CRICASTECH */}
-      <Row className="mb-4 text-center">
-        <Col md={3} className="mb-3">
-          <Card className="p-3 border-0 shadow-sm">
-            <small className="text-muted fw-bold">TOTAL VENDIDO</small>
-            <h4 className="text-primary mb-0">{formatCurrency(data.stats.totalVenda)}</h4>
-          </Card>
-        </Col>
-        <Col md={3} className="mb-3">
-          <Card className="p-3 border-0 shadow-sm">
-            <small className="text-muted fw-bold">LUCRO ESTIMADO</small>
-            <h4 className="text-success mb-0">{formatCurrency(data.stats.totalVenda - data.stats.totalCusto)}</h4>
-          </Card>
-        </Col>
-        <Col md={3} className="mb-3">
-          <Card className="p-3 border-0 shadow-sm">
-            <small className="text-muted fw-bold">JÁ RECEBIDO</small>
-            <h4 className="text-info mb-0">{formatCurrency(data.stats.recebido)}</h4>
-          </Card>
-        </Col>
-        <Col md={3} className="mb-3">
-          <Card className="p-3 border-0 shadow-sm">
-            <small className="text-muted fw-bold">PENDENTE</small>
-            <h4 className="text-warning mb-0">{formatCurrency(data.stats.pendente)}</h4>
-          </Card>
-        </Col>
-      </Row>
+      <h2 className="mb-4">Produtos Vendidos <ShoppingCart size={24} className="text-success ms-2"/></h2>
 
-      <Card className="shadow-sm border-0">
-        <Table responsive hover className="mb-0">
-          <thead className="table-light">
-            <tr>
-              <th>Produto</th>
-              <th>Preço Final</th>
-              <th>Status Pagamento</th>
-              <th>Data da Venda</th>
-              <th className="text-end">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.sales.length === 0 ? (
-              <tr><td colSpan="5" className="text-center py-4 text-muted">Nenhuma venda registrada.</td></tr>
-            ) : (
-              data.sales.map(s => (
+      {loading ? <div className="text-center py-5"><Spinner animation="border" /></div> : (
+        <Card className="shadow-sm border-0">
+          <Table responsive hover className="mb-0 text-center align-middle">
+            <thead className="table-light">
+              <tr>
+                <th className="text-start">Produto</th>
+                <th>Preço Final</th>
+                <th>Pagamento</th>
+                <th>Data</th>
+                <th className="text-end">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sales.map(s => (
                 <tr key={s.id}>
-                  <td className="align-middle"><strong>{s.products?.name}</strong></td>
-                  <td className="align-middle">{formatCurrency(s.final_sale_price)}</td>
-                  <td className="align-middle">
+                  <td className="text-start"><strong>{s.products?.name}</strong><br/><small className="text-muted">Qtd: {s.quantity}</small></td>
+                  <td>{formatCurrency(s.final_sale_price)}</td>
+                  <td>
                     {s.sale_installments?.some(i => i.status === 'pendente') ? 
-                      <Badge bg="warning" text="dark">Com Parcelas</Badge> : 
-                      <Badge bg="success">Pago Integralmente</Badge>
-                    }
+                      <Badge bg="warning" text="dark">Parcelado</Badge> : <Badge bg="success">Pago</Badge>}
                   </td>
-                  <td className="align-middle">{new Date(s.sale_date).toLocaleDateString('pt-BR')}</td>
-                  <td className="text-end align-middle">
-                    <Button 
-                      variant="outline-dark" 
-                      size="sm" 
-                      onClick={() => navigate('/generate-receipt', { state: { sale: s } })}
-                    >
-                      <FileText size={14} className="me-1"/> Recibo
-                    </Button>
+                  <td>{new Date(s.sale_date).toLocaleDateString('pt-BR')}</td>
+                  <td className="text-end">
+                    <div className="d-flex justify-content-end gap-2">
+                      <Button variant="outline-dark" size="sm" onClick={() => { setSelectedSale(s); setShowDetailsModal(true); }}><Eye size={14}/></Button>
+                      <Button variant="outline-secondary" size="sm" onClick={() => navigate('/generate-receipt', { state: { sale: s } })}><FileText size={14}/> Recibo</Button>
+                    </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </Table>
-      </Card>
+              ))}
+            </tbody>
+          </Table>
+        </Card>
+      )}
+
+      {/* MODAL DETALHES VENDA */}
+      <Modal show={showDetailsModal} onHide={() => setShowDetailsModal(false)} centered size="lg">
+        <Modal.Header closeButton className="bg-light"><Modal.Title>Detalhes: {selectedSale?.products?.name}</Modal.Title></Modal.Header>
+        <Modal.Body className="p-4">
+          {selectedSale && (
+            <Row>
+              <Col md={6}>
+                <h6 className="text-muted small fw-bold">RESUMO</h6>
+                <ListGroup className="mb-3 shadow-sm">
+                  <ListGroup.Item className="d-flex justify-content-between fw-bold text-success">Lucro Bruto: <span>{formatCurrency(selectedSale.final_sale_price - (selectedSale.products?.cost_price * selectedSale.quantity))}</span></ListGroup.Item>
+                </ListGroup>
+                <div className="p-3 bg-light rounded">
+                   <div className="d-flex justify-content-between mb-1 small text-muted"><span>Total Pago (Entrada):</span><span>{formatCurrency(selectedSale.down_payment)}</span></div>
+                   <div className="d-flex justify-content-between fw-bold text-warning"><span>A Receber:</span><span>{formatCurrency(selectedSale.final_sale_price - selectedSale.down_payment)}</span></div>
+                </div>
+              </Col>
+              <Col md={6}>
+                <h6 className="text-muted small fw-bold">PARCELAS</h6>
+                {selectedSale.sale_installments?.length > 0 ? selectedSale.sale_installments.map((inst, i) => (
+                  <div key={inst.id} className="d-flex justify-content-between border-bottom py-2 small">
+                    <span>{i+1}ª - {formatCurrency(inst.amount)}</span>
+                    <span>{inst.status === 'pago' ? <Badge bg="success">OK</Badge> : <Badge bg="warning" text="dark">Pendente</Badge>}</span>
+                  </div>
+                )) : <Alert variant="info" className="py-2 small">Venda à vista.</Alert>}
+              </Col>
+            </Row>
+          )}
+        </Modal.Body>
+      </Modal>
     </>
   );
 };
