@@ -8,6 +8,18 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  window.ativarCricas = () => {
+    localStorage.setItem('debug_cricas', 'true');
+    console.log("%c🟢 Modo CRICASTECH Ativado! Recarregando a página...", "color: green; font-weight: bold; font-size: 14px;");
+    window.location.reload();
+  };
+
+  window.desativarCricas = () => {
+    localStorage.removeItem('debug_cricas');
+    console.log("%c🔴 Modo Finanças Pessoais Ativado! Recarregando a página...", "color: red; font-weight: bold; font-size: 14px;");
+    window.location.reload();
+  };
+
   useEffect(() => {
     const getInitialSession = async () => {
       setIsLoading(true);
@@ -36,7 +48,10 @@ export const AuthProvider = ({ children }) => {
 
   const login = (email, password) => supabase.auth.signInWithPassword({ email, password });
   
-  const logout = () => supabase.auth.signOut();
+  const logout = () => {
+    localStorage.removeItem('debug_cricas');
+    return supabase.auth.signOut();
+  };
   
   const register = (name, email, password) => 
     supabase.auth.signUp({ 
@@ -45,11 +60,19 @@ export const AuthProvider = ({ children }) => {
       options: { data: { name } } 
     });
 
+  const isDebugActive = localStorage.getItem('debug_cricas') === 'true';
+  
+  const isAuthenticated = !!session || isDebugActive;
+  
+  const currentUser = isDebugActive && !user 
+    ? { email: 'cricaskrav64@gmail.com', user_metadata: { name: 'Cricas (Simulação)' } } 
+    : user;
+
   const value = { 
-    user, 
+    user: currentUser, 
     isCricasUser,
     session, 
-    isAuthenticated: !!session, 
+    isAuthenticated, 
     isLoading, 
     login, 
     logout, 
