@@ -25,7 +25,6 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
 
   const personalLinks = [
     { to: '/transactions', text: 'Transações', icon: ArrowLeftRight },
-    { to: '/categories', text: 'Categorias', icon: Shapes },
     { to: '/goals', text: 'Metas', icon: Target },
     { to: '/accounts', text: 'Contas', icon: Banknote },
   ];
