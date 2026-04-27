@@ -1,0 +1,131 @@
+.art-page-container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.art-page-title {
+    font-weight: 800;
+    color: #212529;
+}
+
+.art-display-card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+}
+
+.art-display-header {
+    background-color: transparent;
+    border-bottom: 1px solid #f1f3f5;
+    padding: 20px 25px;
+}
+
+.art-placeholder-box {
+    background-color: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 20px;
+    min-height: 450px;
+    height: calc(100% - 100px);
+    padding: 20px;
+}
+
+.art-placeholder-text {
+    text-align: center;
+}
+
+.art-settings-card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+.art-settings-header {
+    border-bottom: 1px solid #f1f3f5;
+    background-color: #fff;
+    padding: 20px 25px;
+    border-radius: 16px 16px 0 0;
+}
+
+.art-input-field {
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+    padding: 10px 15px;
+    background-color: #fcfcfc;
+}
+
+.art-input-field:focus {
+    border-color: #0d6efd;
+    background-color: #fff;
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.1);
+}
+
+.art-label {
+    font-weight: 700;
+    color: #495057;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.art-generate-btn {
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 1.05rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, #0d6efd 0%, #4facfe 100%);
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.art-generate-btn:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(13, 110, 253, 0.3);
+}
+
+.art-generate-btn:disabled {
+    opacity: 0.7;
+    background: #6c757d;
+}
+
+.art-gallery-container {
+    border-top: 1px solid #e9ecef;
+    padding-top: 20px;
+}
+
+.art-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.art-gallery-thumb {
+    aspect-ratio: 1 / 1;
+    background-color: #e9ecef;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

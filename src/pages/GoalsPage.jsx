@@ -4,7 +4,7 @@ import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import { Plus, Edit, Trash2 } from 'lucide-react';
-import { Spinner, Alert, Card, ProgressBar, Row, Col } from 'react-bootstrap';
+import { Spinner, Alert, Card, ProgressBar, Row, Col, Form } from 'react-bootstrap';
 
 const GoalsPage = () => {
   const [goals, setGoals] = useState([]);
@@ -14,6 +14,8 @@ const GoalsPage = () => {
   const [currentGoal, setCurrentGoal] = useState({ id: null, name: '', targetAmount: '', currentAmount: 0, targetDate: '' });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+
+  const [isPremium, setIsPremium] = useState(false);
   
   const formatDateForInput = (date) => date ? new Date(date).toISOString().split('T')[0] : '';
   const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -110,22 +112,44 @@ const GoalsPage = () => {
 
   const GoalCard = ({ goal }) => {
     const progress = (parseFloat(goal.currentAmount) / parseFloat(goal.targetAmount)) * 100;
+    
+    let recomendacaoMensal = 0;
+    if (goal.targetDate && parseFloat(goal.currentAmount) < parseFloat(goal.targetAmount)) {
+      const mesesRestantes = Math.max(1, (new Date(goal.targetDate) - new Date()) / (1000 * 60 * 60 * 24 * 30));
+      recomendacaoMensal = (parseFloat(goal.targetAmount) - parseFloat(goal.currentAmount)) / mesesRestantes;
+    }
+
     return (
       <Col md={6} lg={4} className="mb-4">
-        <Card className="shadow-sm h-100">
+        <Card className="shadow-sm h-100 border-0 rounded-4">
           <Card.Body>
             <div className="d-flex justify-content-between align-items-start">
-              <Card.Title className="h5">{goal.name}</Card.Title>
+              <Card.Title className="h5 fw-bold">{goal.name}</Card.Title>
               <div>
                 <Button variant="outline-secondary" size="sm" onClick={() => openModalForEdit(goal)} className="me-2"><Edit size={16} /></Button>
                 <Button variant="outline-danger" size="sm" onClick={() => handleDeleteClick(goal.id)}><Trash2 size={16} /></Button>
               </div>
             </div>
-            <ProgressBar now={progress} label={`${progress.toFixed(1)}%`} className="my-3" />
-            <div className="d-flex justify-content-between">
-              <span className="text-success">{formatCurrency(goal.currentAmount)}</span>
-              <span className="text-muted">{formatCurrency(goal.targetAmount)}</span>
+            
+            <ProgressBar now={progress} variant={progress >= 100 ? "success" : "primary"} label={`${progress.toFixed(1)}%`} className="my-3" style={{ height: '20px' }} />
+            
+            <div className="d-flex justify-content-between mb-2">
+              <span className="text-success fw-bold">{formatCurrency(goal.currentAmount)}</span>
+              <span className="text-muted fw-bold">{formatCurrency(goal.targetAmount)}</span>
             </div>
+
+            {isPremium && recomendacaoMensal > 0 ? (
+              <div className="mt-3 p-3 bg-primary-soft rounded text-center border border-primary" style={{backgroundColor: 'rgba(13, 110, 253, 0.05)'}}>
+                <small className="text-primary fw-bold d-block mb-1">💡 Assistente MoneyBoard (Premium):</small>
+                <span className="small text-dark">
+                  Poupe <strong>{formatCurrency(recomendacaoMensal)}</strong> por mês para bater esta meta!
+                </span>
+              </div>
+            ) : !isPremium && (
+              <div className="mt-3 p-2 bg-light rounded text-center" style={{ border: '1px dashed #ccc' }}>
+                <small className="text-muted fst-italic">Assine o Premium para ver a recomendação de aporte.</small>
+              </div>
+            )}
           </Card.Body>
         </Card>
       </Col>
@@ -135,12 +159,24 @@ const GoalsPage = () => {
   return (
     <>
       <div className="d-flex align-items-center justify-content-between mb-4">
-        <h1 className="h2">Minhas Metas</h1>
+        <div>
+          <h1 className="h2 mb-0">Minhas Metas</h1>
+          <Form.Check 
+            type="switch" 
+            label={isPremium ? "💎 Modo Premium Ativo" : "Modo Freemium"} 
+            checked={isPremium} 
+            onChange={() => setIsPremium(!isPremium)}
+            className="mt-2 text-primary fw-bold"
+          />
+        </div>
         <Button onClick={openModalForCreate} icon={<Plus />}>Nova Meta</Button>
       </div>
-      {isLoading && <div className="text-center"><Spinner animation="border" /></div>}
+
+      {isLoading && <div className="text-center py-5"><Spinner animation="border" variant="primary" /></div>}
       {error && <Alert variant="danger">{error}</Alert>}
+      
       <Row>{!isLoading && goals.map(goal => <GoalCard key={goal.id} goal={goal} />)}</Row>
+      
       {isFormModalOpen && (
         <Modal isOpen={isFormModalOpen} onClose={closeFormModal} title={currentGoal?.id ? 'Editar Meta' : 'Nova Meta'}
           footer={<><Button variant="secondary" onClick={closeFormModal}>Cancelar</Button><Button onClick={handleSubmit}>Salvar</Button></>}>
@@ -152,6 +188,7 @@ const GoalsPage = () => {
           </form>
         </Modal>
       )}
+
       <Modal 
         isOpen={showDeleteModal} 
         onClose={() => setShowDeleteModal(false)} 

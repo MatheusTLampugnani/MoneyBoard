@@ -1,194 +1,157 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { useAuth } from '../context/AuthContext'; // IMPORTAMOS O CONTEXTO
 import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
-import { Plus, Edit, Trash2, List } from 'lucide-react';
-import { Spinner, Alert, Card, ListGroup } from 'react-bootstrap';
+import { Plus, Edit, Trash2, Tag } from 'lucide-react';
+import { Spinner, Alert, Card, Form, Row, Col } from 'react-bootstrap';
 
 const CategoriesPage = () => {
-  const { isCricasUser } = useAuth();
-  const tableName = isCricasUser ? 'product_categories' : 'categories';
-
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-  const [currentCategory, setCurrentCategory] = useState({ id: null, name: '', color: '#0d6efd' });
+  const [currentCategory, setCurrentCategory] = useState({ id: null, name: '' });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
 
+  // CHAVE DE SIMULAÇÃO PARA A APRESENTAÇÃO
+  const [isPremium, setIsPremium] = useState(false);
+
   const fetchCategories = useCallback(async () => {
     setIsLoading(true);
-    setError(null);
     try {
-      const { data, error: fetchError } = await supabase
-        .from(tableName)
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (fetchError) throw fetchError;
+      const { data, error } = await supabase.from('categories').select('*').order('name');
+      if (error) throw error;
       setCategories(data || []);
     } catch (err) {
-      console.error("Erro ao carregar categorias:", err);
-      setError("Não foi possível carregar as categorias.");
+      setError("Erro ao carregar categorias.");
     } finally {
       setIsLoading(false);
     }
-  }, [tableName]);
+  }, []);
 
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
-  const openModalForCreate = () => {
-    setCurrentCategory({ id: null, name: '', color: '#0d6efd' });
-    setIsFormModalOpen(true);
-  };
-
-  const openModalForEdit = (category) => {
-    setCurrentCategory(category);
-    setIsFormModalOpen(true);
-  };
-
-  const closeFormModal = () => setIsFormModalOpen(false);
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { id, name, color } = currentCategory;
-    const payload = isCricasUser ? { name } : { name, color };
+    const payload = { name: currentCategory.name };
 
     try {
-      let error;
-      if (id) {
-        const { error: updateError } = await supabase
-          .from(tableName)
-          .update(payload)
-          .eq('id', id);
-        error = updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from(tableName)
-          .insert(payload);
-        error = insertError;
-      }
+      const { error } = currentCategory.id 
+        ? await supabase.from('categories').update(payload).eq('id', currentCategory.id)
+        : await supabase.from('categories').insert([payload]);
+
       if (error) throw error;
       fetchCategories();
-      closeFormModal();
-    } catch (err) {
-      console.error("Erro ao salvar categoria:", err);
-    }
-  };
-
-  const handleDeleteClick = (id) => {
-    setItemToDelete(id);
-    setShowDeleteModal(true);
+      setIsFormModalOpen(false);
+    } catch (err) { alert(err.message); }
   };
 
   const confirmDelete = async () => {
-    if (itemToDelete) {
-      try {
-        const { error: deleteError } = await supabase
-          .from(tableName)
-          .delete()
-          .eq('id', itemToDelete);
-        
-        if (deleteError) throw deleteError;
-        fetchCategories();
-      } catch (err) {
-        console.error("Erro ao deletar categoria:", err);
-      } finally {
-        setShowDeleteModal(false);
-        setItemToDelete(null);
-      }
+    if (!itemToDelete) return;
+    try {
+      const { error } = await supabase.from('categories').delete().eq('id', itemToDelete);
+      if (error) throw error;
+      await fetchCategories();
+    } catch (err) {
+      console.error("Erro ao deletar:", err);
+      alert("Erro ao apagar. Pode haver transações usando esta categoria.");
+    } finally {
+      setShowDeleteModal(false);
+      setItemToDelete(null);
     }
   };
+
+  // Limite simulado para o plano grátis (ex: 4 categorias padrão)
+  const isLimitReached = !isPremium && categories.length >= 4;
 
   return (
     <>
       <div className="d-flex align-items-center justify-content-between mb-4">
-        <h1 className="h2 d-flex align-items-center">
-          {isCricasUser ? 'Categorias da Loja' : 'Categorias de Despesas'}
-          {isCricasUser && <List size={24} className="text-primary ms-2" />}
-        </h1>
-        <Button onClick={openModalForCreate} icon={<Plus />}>Nova Categoria</Button>
+        <div>
+          <h1 className="h2 mb-0">Categorias</h1>
+          <Form.Check 
+            type="switch" 
+            label={isPremium ? "💎 Modo Premium Ativo" : "Modo Freemium"} 
+            checked={isPremium} 
+            onChange={() => setIsPremium(!isPremium)}
+            className="mt-2 text-primary fw-bold"
+          />
+        </div>
+        
+        <Button 
+          disabled={isLimitReached}
+          onClick={() => { setCurrentCategory({ id: null, name: '' }); setIsFormModalOpen(true); }} 
+          icon={<Plus />}
+        >
+          {isLimitReached ? "Premium Apenas" : "Nova Categoria"}
+        </Button>
       </div>
 
-      {isLoading && <div className="text-center"><Spinner animation="border" /></div>}
-      {error && <Alert variant="danger">{error}</Alert>}
-      
-      {!isLoading && !error && (
-        <Card className="shadow-sm">
-          <ListGroup variant="flush">
-            {categories.map(cat => (
-              <ListGroup.Item key={cat.id} className="d-flex justify-content-between align-items-center">
-                <div className="d-flex align-items-center">
-                  {/* Mostra a bolinha de cor apenas se NÃO for usuário Cricas */}
-                  {!isCricasUser && (
-                    <span className="d-inline-block rounded-circle me-3" style={{ width: '15px', height: '15px', backgroundColor: cat.color }}></span>
-                  )}
-                  <span className="fw-bold">{cat.name}</span>
-                </div>
-                <div>
-                  <Button variant="outline-secondary" size="sm" onClick={() => openModalForEdit(cat)} className="me-2"><Edit size={16} /></Button>
-                  <Button variant="outline-danger" size="sm" onClick={() => handleDeleteClick(cat.id)}><Trash2 size={16} /></Button>
-                </div>
-              </ListGroup.Item>
-            ))}
-            {categories.length === 0 && (
-               <ListGroup.Item className="text-center py-4 text-muted">Nenhuma categoria cadastrada.</ListGroup.Item>
-            )}
-          </ListGroup>
-        </Card>
+      {isLimitReached && (
+        <Alert variant="secondary" className="border-0 shadow-sm mb-4 d-flex align-items-center">
+          <Tag className="text-secondary me-3" size={24} />
+          <div>
+            <strong>Personalização Bloqueada:</strong> No plano grátis você utiliza apenas as categorias padrão do sistema. Ative o <strong>Premium</strong> para criar categorias ilimitadas para organizar perfeitamente a sua vida!
+          </div>
+        </Alert>
       )}
 
-      <Modal 
-        isOpen={isFormModalOpen} 
-        onClose={closeFormModal} 
-        title={currentCategory.id ? 'Editar Categoria' : 'Nova Categoria'}
-        footer={
-          <>
-            <Button variant="secondary" onClick={closeFormModal}>Cancelar</Button>
-            <Button onClick={handleSubmit}>Salvar</Button>
-          </>
-        }
-      >
-        <form onSubmit={handleSubmit}>
-          <Input 
-            id="name" 
-            label="Nome da Categoria" 
-            value={currentCategory.name} 
-            onChange={(e) => setCurrentCategory({...currentCategory, name: e.target.value})} 
-            required
-          />
-          
-          {!isCricasUser && (
-            <Input 
-              id="color" 
-              label="Cor" 
-              type="color" 
-              value={currentCategory.color} 
-              onChange={(e) => setCurrentCategory({...currentCategory, color: e.target.value})} 
-            />
-          )}
-        </form>
+      {isLoading ? <Spinner animation="border" /> : error ? <Alert variant="danger">{error}</Alert> : (
+        <Row>
+          {categories.map(cat => (
+            <Col md={4} sm={6} key={cat.id} className="mb-3">
+              <Card className="shadow-sm border-0 h-100">
+                <Card.Body className="d-flex justify-content-between align-items-center p-3">
+                  <div className="d-flex align-items-center">
+                    <div className="bg-light p-2 rounded me-2">
+                      <Tag size={16} className="text-secondary" />
+                    </div>
+                    <span className="fw-bold">{cat.name}</span>
+                  </div>
+                  
+                  {isPremium ? (
+                    <div>
+                      <Button variant="link" size="sm" className="text-secondary p-1" onClick={() => { setCurrentCategory(cat); setIsFormModalOpen(true); }}><Edit size={16}/></Button>
+                      <Button variant="link" size="sm" className="text-danger p-1" onClick={() => { setItemToDelete(cat.id); setShowDeleteModal(true); }}><Trash2 size={16}/></Button>
+                    </div>
+                  ) : (
+                    <small className="text-muted" style={{fontSize: '0.7rem'}}>Padrão</small>
+                  )}
+                </Card.Body>
+              </Card>
+            </Col>
+          ))}
+          {categories.length === 0 && <div className="text-center py-5 text-muted">Nenhuma categoria cadastrada.</div>}
+        </Row>
+      )}
+
+      <Modal isOpen={isFormModalOpen} onClose={() => setIsFormModalOpen(false)} title={currentCategory.id ? 'Editar Categoria' : 'Nova Categoria'}>
+        <Form onSubmit={handleSubmit}>
+          <Input label="Nome da Categoria (ex: Lazer, Pet, Streaming)" value={currentCategory.name} onChange={e => setCurrentCategory({...currentCategory, name: e.target.value})} required />
+          <div className="d-flex justify-content-end gap-2 mt-3">
+            <Button variant="secondary" onClick={() => setIsFormModalOpen(false)}>Cancelar</Button>
+            <Button type="submit">Guardar</Button>
+          </div>
+        </Form>
       </Modal>
 
-      <Modal 
-        isOpen={showDeleteModal} 
-        onClose={() => setShowDeleteModal(false)} 
-        title="Confirmar Exclusão"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</Button>
-            <Button variant="danger" onClick={confirmDelete}>Deletar</Button>
-          </>
-        }
-      >
-        <p>Tem certeza que deseja deletar a categoria <strong>{categories.find(c => c.id === itemToDelete)?.name}</strong>?</p>
-        {isCricasUser && <small className="text-muted">Produtos vinculados a esta categoria ficarão sem categoria.</small>}
-      </Modal>
+      {showDeleteModal && (
+        <Modal 
+          isOpen={showDeleteModal} 
+          onClose={() => setShowDeleteModal(false)} 
+          title="Confirmar Exclusão" 
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</Button>
+              <Button variant="danger" onClick={confirmDelete}>Excluir</Button>
+            </>
+          }
+        >
+          <p>Tem certeza que deseja apagar esta categoria?</p>
+        </Modal>
+      )}
     </>
   );
 };

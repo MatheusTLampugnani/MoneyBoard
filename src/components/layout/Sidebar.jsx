@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Nav, CloseButton } from 'react-bootstrap';
+import { Nav, CloseButton, Modal, Table, Card, Button as RBButton } from 'react-bootstrap';
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -9,7 +9,10 @@ import {
   Banknote,
   Package,
   ShoppingBag,
-  Tag
+  Tag,
+  Sparkles,
+  Check,
+  X
 } from 'lucide-react';
 import './Sidebar.css';
 import { useAuth } from '../../context/AuthContext';
@@ -17,6 +20,10 @@ import cricasLogo from '../../assets/cricas-logo.jpeg';
 
 const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
   const { isCricasUser } = useAuth();
+  
+  // INOVAÇÃO: Estados para o modelo de negócio (Planos)
+  const [showPlans, setShowPlans] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
 
   const commonLinks = [
     { to: '/', text: 'Dashboard', icon: LayoutDashboard },
@@ -67,10 +74,20 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
                 </div>
               </div>
             ) : (
-              <>
-                <Banknote className="text-primary me-2" size={32} />
-                <h1 className="h4 mb-0 text-white">MoneyBoard</h1>
-              </>
+              <div className="d-flex flex-column">
+                <div className="d-flex align-items-center">
+                  <Banknote className="text-primary me-2" size={32} />
+                  <h1 className="h4 mb-0 text-white">MoneyBoard</h1>
+                </div>
+                {/* INOVAÇÃO: Crachá indicativo do Plano */}
+                <span 
+                  className={`badge ${isPremium ? 'bg-info text-dark' : 'bg-warning text-dark'} shadow-sm mt-2`}
+                  style={{ cursor: 'pointer', width: 'fit-content', fontSize: '0.7rem' }}
+                  onClick={() => setShowPlans(true)}
+                >
+                  {isPremium ? <><Sparkles size={10} className="me-1"/> PLANO PREMIUM</> : 'PLANO FREEMIUM'}
+                </span>
+              </div>
             )}
           </div>
           <CloseButton variant="white" className="d-md-none" onClick={() => setIsSidebarOpen(false)} />
@@ -107,8 +124,83 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
               ))}
             </>
           )}
+
+          {/* INOVAÇÃO: Call to Action para o Upgrade (Apenas no MoneyBoard Freemium) */}
+          {!isCricasUser && !isPremium && (
+            <div className="mt-4 p-3 rounded text-center border border-secondary" style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}>
+              <small className="text-light d-block mb-2">Tenha recursos ilimitados</small>
+              <button 
+                className="btn btn-outline-warning btn-sm w-100 fw-bold" 
+                onClick={() => setShowPlans(true)}
+              >
+                Fazer Upgrade
+              </button>
+            </div>
+          )}
         </Nav>
       </aside>
+
+      {/* INOVAÇÃO: Janela Modal de Comparação de Planos */}
+      <Modal show={showPlans} onHide={() => setShowPlans(false)} size="lg" centered>
+        <Modal.Header closeButton className="border-0">
+          <Modal.Title className="fw-bold">Escolha o seu Plano</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-4">
+          <Table responsive borderless className="align-middle">
+            <thead>
+              <tr className="text-center">
+                <th className="text-start">Funcionalidade</th>
+                <th className="p-3 bg-light rounded-top">Freemium (Grátis)</th>
+                <th className="p-3 bg-primary-soft rounded-top text-primary" style={{ backgroundColor: 'rgba(13, 110, 253, 0.1)' }}>Premium (R$ 9,90)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Contas e Cartões</td>
+                <td className="text-center">Até 2 contas</td>
+                <td className="text-center fw-bold">Ilimitado</td>
+              </tr>
+              <tr>
+                <td>Inteligência de Fatura (Cartões)</td>
+                <td className="text-center"><X size={18} className="text-danger" /></td>
+                <td className="text-center"><Check size={18} className="text-success" /></td>
+              </tr>
+              <tr>
+                <td>Assistente de Metas (Cálculo de Aporte)</td>
+                <td className="text-center"><X size={18} className="text-danger" /></td>
+                <td className="text-center"><Check size={18} className="text-success" /></td>
+              </tr>
+              <tr>
+                <td>Relatórios em PDF</td>
+                <td className="text-center"><X size={18} className="text-danger" /></td>
+                <td className="text-center"><Check size={18} className="text-success" /></td>
+              </tr>
+              <tr>
+                <td>Categorias Personalizadas</td>
+                <td className="text-center">Básico</td>
+                <td className="text-center fw-bold text-success">Total</td>
+              </tr>
+            </tbody>
+          </Table>
+
+          <div className="d-flex flex-column flex-md-row gap-3 mt-4">
+            <Card className="flex-fill p-3 border-0 bg-light text-center">
+              <h5>Plano Atual</h5>
+              <RBButton variant="secondary" disabled className="w-100 mt-2">Ativo</RBButton>
+            </Card>
+            <Card className="flex-fill p-3 border-primary text-center shadow-sm" style={{ backgroundColor: 'rgba(13, 110, 253, 0.05)' }}>
+              <h5 className="text-primary fw-bold">Plano Premium</h5>
+              <RBButton 
+                variant="primary" 
+                className="w-100 mt-2 fw-bold"
+                onClick={() => { setIsPremium(true); setShowPlans(false); }}
+              >
+                Assinar Agora
+              </RBButton>
+            </Card>
+          </div>
+        </Modal.Body>
+      </Modal>
     </>
   );
 };
