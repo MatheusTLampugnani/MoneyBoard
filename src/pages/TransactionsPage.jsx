@@ -202,6 +202,7 @@ const TransactionsPage = () => {
                           <th>Conta/Cartão</th>
                           <th>Valor</th>
                           <th>Data Compra</th>
+                          <th>Fatura/Mês</th>
                           <th className="text-end">Ações</th>
                         </tr>
                       </thead>
@@ -220,6 +221,12 @@ const TransactionsPage = () => {
                               {formatCurrency(t.amount)}
                             </td>
                             <td className="align-middle">{new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</td>
+                            <td className="align-middle">
+                              <span className="badge bg-secondary p-2 shadow-sm">
+                                {new Date(key + '-02').toLocaleDateString('pt-BR', { month: 'short', year: 'numeric', timeZone: 'UTC' }).toUpperCase()}
+                              </span>
+                            </td>
+
                             <td className="text-end align-middle">
                               <Button variant="link" size="sm" className="text-secondary" onClick={() => openModalForEdit(t)}><Edit size={16}/></Button>
                               <Button variant="link" size="sm" className="text-danger" onClick={() => { setItemToDelete(t.id); setShowDeleteModal(true); }}><Trash2 size={16}/></Button>

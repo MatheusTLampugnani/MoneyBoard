@@ -4,7 +4,7 @@ import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import { Plus, Edit, Trash2, CreditCard, Wallet } from 'lucide-react';
-import { Spinner, Alert, Card, ListGroup, Form, Row, Col } from 'react-bootstrap';
+import { Spinner, Alert, Card, Form, Row, Col } from 'react-bootstrap';
 
 const AccountsPage = () => {
   const [accounts, setAccounts] = useState([]);
@@ -14,6 +14,8 @@ const AccountsPage = () => {
   const [currentAccount, setCurrentAccount] = useState({ id: null, name: '', type: 'corrente', closing_day: '', due_day: '' });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+  
+  const [isPremium, setIsPremium] = useState(false);
 
   const fetchAccounts = useCallback(async () => {
     setIsLoading(true);
@@ -50,14 +52,51 @@ const AccountsPage = () => {
     } catch (err) { alert(err.message); }
   };
 
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+    try {
+      const { error } = await supabase.from('accounts').delete().eq('id', itemToDelete);
+      if (error) throw error;
+      await fetchAccounts();
+    } catch (err) {
+      console.error("Erro ao deletar:", err);
+      alert("Erro ao apagar conta. Verifique se não existem transações vinculadas a ela.");
+    } finally {
+      setShowDeleteModal(false);
+      setItemToDelete(null);
+    }
+  };
+
   return (
     <>
       <div className="d-flex align-items-center justify-content-between mb-4">
-        <h1 className="h2">Minhas Contas e Cartões</h1>
-        <Button onClick={() => { setCurrentAccount({ id: null, name: '', type: 'corrente', closing_day: '', due_day: '' }); setIsFormModalOpen(true); }} icon={<Plus />}>Nova Conta</Button>
+        <div>
+          <h1 className="h2 mb-0">Minhas Contas e Cartões</h1>
+          <Form.Check 
+            type="switch" 
+            label={isPremium ? "💎 Modo Premium Ativo" : "Modo Freemium"} 
+            checked={isPremium} 
+            onChange={() => setIsPremium(!isPremium)}
+            className="mt-2 text-primary fw-bold"
+          />
+        </div>
+        
+        <Button 
+          disabled={!isPremium && accounts.length >= 2}
+          onClick={() => { setCurrentAccount({ id: null, name: '', type: 'corrente', closing_day: '', due_day: '' }); setIsFormModalOpen(true); }} 
+          icon={<Plus />}
+        >
+          {!isPremium && accounts.length >= 2 ? "Limite Atingido (Grátis)" : "Nova Conta"}
+        </Button>
       </div>
 
-      {isLoading ? <Spinner animation="border" /> : (
+      {!isPremium && accounts.length >= 2 && (
+        <Alert variant="warning" className="border-0 shadow-sm mb-4">
+          💡 <strong>Limite de contas atingido:</strong> No plano gratuito só pode gerir 2 contas. Faça upgrade para ilimitadas!
+        </Alert>
+      )}
+
+      {isLoading ? <Spinner animation="border" /> : error ? <Alert variant="danger">{error}</Alert> : (
         <Row>
           {accounts.map(acc => (
             <Col md={6} key={acc.id} className="mb-3">
@@ -82,6 +121,7 @@ const AccountsPage = () => {
               </Card>
             </Col>
           ))}
+          {accounts.length === 0 && <div className="text-center py-5 text-muted">Nenhuma conta cadastrada.</div>}
         </Row>
       )}
 
@@ -109,6 +149,22 @@ const AccountsPage = () => {
           </div>
         </Form>
       </Modal>
+
+      {showDeleteModal && (
+        <Modal 
+          isOpen={showDeleteModal} 
+          onClose={() => setShowDeleteModal(false)} 
+          title="Confirmar Exclusão" 
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</Button>
+              <Button variant="danger" onClick={confirmDelete}>Excluir</Button>
+            </>
+          }
+        >
+          <p>Tem certeza que deseja apagar esta conta ou cartão?</p>
+        </Modal>
+      )}
     </>
   );
 };
