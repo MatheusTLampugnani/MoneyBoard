@@ -8,18 +8,6 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  window.ativarCricas = () => {
-    localStorage.setItem('debug_cricas', 'true');
-    console.log("%c🟢 Modo CRICASTECH Ativado! Recarregando a página...", "color: green; font-weight: bold; font-size: 14px;");
-    window.location.reload();
-  };
-
-  window.desativarCricas = () => {
-    localStorage.removeItem('debug_cricas');
-    console.log("%c🔴 Modo Finanças Pessoais Ativado! Recarregando a página...", "color: red; font-weight: bold; font-size: 14px;");
-    window.location.reload();
-  };
-
   useEffect(() => {
     const getInitialSession = async () => {
       setIsLoading(true);
@@ -42,6 +30,7 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  // Lógica original mantida: verifica o email real ou a flag de simulação
   const isCricasUser = useMemo(() => {
     return user?.email === 'cricaskrav64@gmail.com' || localStorage.getItem('debug_cricas') === 'true';
   }, [user]);
