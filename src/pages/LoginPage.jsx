@@ -22,7 +22,13 @@ const LoginPage = () => {
       await login(email, password);
       navigate('/'); 
     } catch (err) {
-      setError('Falha no login. Verifique seu e-mail e senha.');
+      if (err.message === 'Invalid login credentials') {
+        setError('E-mail ou senha incorretos.');
+      } else if (err.message === 'Email not confirmed') {
+        setError('Por favor, confirme seu e-mail clicando no link que enviamos para a sua caixa de entrada.');
+      } else {
+        setError(err.message || 'Falha no login. Verifique os seus dados.');
+      }
       console.error("Erro de login:", err.message);
     } finally {
       setLoading(false);
