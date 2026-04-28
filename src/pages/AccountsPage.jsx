@@ -14,8 +14,6 @@ const AccountsPage = () => {
   const [currentAccount, setCurrentAccount] = useState({ id: null, name: '', type: 'corrente', closing_day: '', due_day: '' });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
-  
-  const [isPremium, setIsPremium] = useState(false);
 
   const fetchAccounts = useCallback(async () => {
     setIsLoading(true);
@@ -70,31 +68,14 @@ const AccountsPage = () => {
   return (
     <>
       <div className="d-flex align-items-center justify-content-between mb-4">
-        <div>
-          <h1 className="h2 mb-0">Minhas Contas e Cartões</h1>
-          <Form.Check 
-            type="switch" 
-            label={isPremium ? "💎 Modo Premium Ativo" : "Modo Freemium"} 
-            checked={isPremium} 
-            onChange={() => setIsPremium(!isPremium)}
-            className="mt-2 text-primary fw-bold"
-          />
-        </div>
-        
+        <h1 className="h2 mb-0">Minhas Contas e Cartões</h1>
         <Button 
-          disabled={!isPremium && accounts.length >= 2}
           onClick={() => { setCurrentAccount({ id: null, name: '', type: 'corrente', closing_day: '', due_day: '' }); setIsFormModalOpen(true); }} 
           icon={<Plus />}
         >
-          {!isPremium && accounts.length >= 2 ? "Limite Atingido (Grátis)" : "Nova Conta"}
+          Nova Conta
         </Button>
       </div>
-
-      {!isPremium && accounts.length >= 2 && (
-        <Alert variant="warning" className="border-0 shadow-sm mb-4">
-          💡 <strong>Limite de contas atingido:</strong> No plano gratuito só pode gerir 2 contas. Faça upgrade para ilimitadas!
-        </Alert>
-      )}
 
       {isLoading ? <Spinner animation="border" /> : error ? <Alert variant="danger">{error}</Alert> : (
         <Row>

@@ -15,9 +15,6 @@ const CategoriesPage = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
 
-  // CHAVE DE SIMULAÇÃO PARA A APRESENTAÇÃO
-  const [isPremium, setIsPremium] = useState(false);
-
   const fetchCategories = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -63,40 +60,14 @@ const CategoriesPage = () => {
     }
   };
 
-  // Limite simulado para o plano grátis (ex: 4 categorias padrão)
-  const isLimitReached = !isPremium && categories.length >= 4;
-
   return (
     <>
       <div className="d-flex align-items-center justify-content-between mb-4">
-        <div>
-          <h1 className="h2 mb-0">Categorias</h1>
-          <Form.Check 
-            type="switch" 
-            label={isPremium ? "💎 Modo Premium Ativo" : "Modo Freemium"} 
-            checked={isPremium} 
-            onChange={() => setIsPremium(!isPremium)}
-            className="mt-2 text-primary fw-bold"
-          />
-        </div>
-        
-        <Button 
-          disabled={isLimitReached}
-          onClick={() => { setCurrentCategory({ id: null, name: '' }); setIsFormModalOpen(true); }} 
-          icon={<Plus />}
-        >
-          {isLimitReached ? "Premium Apenas" : "Nova Categoria"}
+        <h1 className="h2 mb-0">Categorias</h1>
+        <Button onClick={() => { setCurrentCategory({ id: null, name: '' }); setIsFormModalOpen(true); }} icon={<Plus />}>
+          Nova Categoria
         </Button>
       </div>
-
-      {isLimitReached && (
-        <Alert variant="secondary" className="border-0 shadow-sm mb-4 d-flex align-items-center">
-          <Tag className="text-secondary me-3" size={24} />
-          <div>
-            <strong>Personalização Bloqueada:</strong> No plano grátis você utiliza apenas as categorias padrão do sistema. Ative o <strong>Premium</strong> para criar categorias ilimitadas para organizar perfeitamente a sua vida!
-          </div>
-        </Alert>
-      )}
 
       {isLoading ? <Spinner animation="border" /> : error ? <Alert variant="danger">{error}</Alert> : (
         <Row>
@@ -110,15 +81,10 @@ const CategoriesPage = () => {
                     </div>
                     <span className="fw-bold">{cat.name}</span>
                   </div>
-                  
-                  {isPremium ? (
-                    <div>
-                      <Button variant="link" size="sm" className="text-secondary p-1" onClick={() => { setCurrentCategory(cat); setIsFormModalOpen(true); }}><Edit size={16}/></Button>
-                      <Button variant="link" size="sm" className="text-danger p-1" onClick={() => { setItemToDelete(cat.id); setShowDeleteModal(true); }}><Trash2 size={16}/></Button>
-                    </div>
-                  ) : (
-                    <small className="text-muted" style={{fontSize: '0.7rem'}}>Padrão</small>
-                  )}
+                  <div>
+                    <Button variant="link" size="sm" className="text-secondary p-1" onClick={() => { setCurrentCategory(cat); setIsFormModalOpen(true); }}><Edit size={16}/></Button>
+                    <Button variant="link" size="sm" className="text-danger p-1" onClick={() => { setItemToDelete(cat.id); setShowDeleteModal(true); }}><Trash2 size={16}/></Button>
+                  </div>
                 </Card.Body>
               </Card>
             </Col>
