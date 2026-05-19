@@ -30,6 +30,7 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  // Lógica original mantida: verifica o email real ou a flag de simulação
   const isCricasUser = useMemo(() => {
     const isCricas = user?.email?.trim().toLowerCase() === 'cricaskrav64@gmail.com' || localStorage.getItem('debug_cricas') === 'true';
     console.log('AuthContext - user email:', user?.email, 'isCricasUser:', isCricas);
