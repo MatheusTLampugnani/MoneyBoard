@@ -11,6 +11,9 @@ const SoldPage = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedSale, setSelectedSale] = useState(null);
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
   };
@@ -84,6 +87,29 @@ const SoldPage = () => {
     } catch (err) {
       console.error("Erro ao atualizar parcela:", err);
       alert("Erro ao atualizar o status da parcela. Verifique a sua conexão.");
+    }
+  };
+
+  const handleDeleteClick = (saleId) => {
+    setItemToDelete(saleId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+    try {
+      await supabase.from('sale_installments').delete().eq('sale_id', itemToDelete);
+
+      const { error } = await supabase.from('sales').delete().eq('id', itemToDelete);
+      if (error) throw error;
+
+      await fetchSales();
+    } catch (err) {
+      console.error("Erro ao deletar venda:", err);
+      alert("Erro ao excluir a venda. Pode haver outros registros vinculados.");
+    } finally {
+      setShowDeleteModal(false);
+      setItemToDelete(null);
     }
   };
 
@@ -167,7 +193,7 @@ const SoldPage = () => {
                         <Button variant="outline-secondary" size="sm" title="Gerar Recibo">
                           <FileText size={16} />
                         </Button>
-                        <Button variant="outline-danger" size="sm" title="Excluir Registro">
+                        <Button variant="outline-danger" size="sm" title="Excluir Registro" onClick={() => handleDeleteClick(sale.id)}>
                           <Trash2 size={16} />
                         </Button>
                       </div>
@@ -269,6 +295,25 @@ const SoldPage = () => {
         <Modal.Footer>
           <Button variant="secondary" onClick={handleCloseDetails}>
             Fechar Janela
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title className="h5 fw-bold text-danger">
+            Confirmar Exclusão
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Tem certeza que deseja apagar esta venda? Esta ação apagará também todas as parcelas cadastradas para esta venda e <strong>não pode ser desfeita</strong>.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+            Cancelar
+          </Button>
+          <Button variant="danger" onClick={confirmDelete}>
+            Excluir Venda
           </Button>
         </Modal.Footer>
       </Modal>
