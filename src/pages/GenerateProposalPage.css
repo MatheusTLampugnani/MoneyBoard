@@ -1,0 +1,281 @@
+.proposal-print-container {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+}
+
+.proposal-print-container * {
+  box-sizing: border-box;
+}
+
+.proposal-card {
+  background: white;
+  width: 100%;
+  max-width: 750px;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  margin: 5px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.proposal-header {
+  background: linear-gradient(135deg, #0056b3 0%, #003d80 100%);
+  color: white;
+  padding: 15px 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.proposal-header::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 150px;
+  height: 150px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+}
+
+.proposal-header-content {
+  position: relative;
+  z-index: 1;
+}
+
+.proposal-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.proposal-header-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.proposal-header-date {
+  text-align: right;
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.proposal-header-date-label {
+  font-weight: 600;
+}
+
+.proposal-header-number {
+  font-size: 11px;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+.proposal-divider {
+  height: 2px;
+  background: linear-gradient(90deg, #3498db 0%, #2980b9 100%);
+}
+
+.proposal-value-section {
+  background: linear-gradient(135deg, #0056b3 0%, #003d80 100%);
+  color: white;
+  padding: 10px 20px;
+  text-align: center;
+  margin: -10px 20px 0 20px;
+  border-radius: 6px;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.proposal-value-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.proposal-value-amount {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.proposal-content {
+  padding: 15px 20px;
+}
+
+.proposal-logo-section {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+  padding: 6px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.proposal-logo-image {
+  max-width: 110px;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.proposal-section {
+  margin-bottom: 12px;
+}
+
+.proposal-section-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: #003d80;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #0056b3;
+  padding-bottom: 3px;
+}
+
+.proposal-text-block {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #333;
+  text-align: justify;
+}
+
+.proposal-items-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 5px;
+}
+
+.proposal-item-card {
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 3px solid #0056b3;
+}
+
+.proposal-item-card-title {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: #003d80;
+  margin-bottom: 5px;
+}
+
+.proposal-item-details {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #333;
+}
+
+.proposal-item-details ul {
+  padding-left: 14px;
+  margin-bottom: 0;
+}
+
+.proposal-item-details strong {
+  color: #003d80;
+  font-weight: 600;
+}
+
+.proposal-service-card {
+  padding: 8px 12px;
+  background: #e6f7ff;
+  border-radius: 6px;
+  border-left: 3px solid #3498db;
+}
+
+.proposal-service-card-title {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: #2980b9;
+  margin-bottom: 3px;
+}
+
+.proposal-service-details {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #333;
+}
+
+.proposal-service-details strong {
+  color: #2980b9;
+  font-weight: 600;
+}
+
+.proposal-footer {
+  background: #e0eafc;
+  padding: 10px 20px;
+  text-align: center;
+  font-size: 9px;
+  color: #555;
+  border-top: 1px solid #cfdef3;
+  margin-top: auto;
+}
+
+.proposal-footer-text {
+  line-height: 1.3;
+}
+
+/* Esconder os elementos do site principal durante a impressão e mostrar APENAS a proposta */
+@media print {
+  body { 
+    background: white !important; 
+    padding: 0 !important; 
+  }
+  
+  /* Esconde navegação, botões e forms */
+  .sidebar, .navbar, .header, .btn, form, .no-print {
+    display: none !important;
+  }
+  
+  /* Expande o conteúdo principal */
+  .main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .proposal-print-container {
+    background: white !important;
+    min-height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .proposal-card {
+    box-shadow: none !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    page-break-inside: avoid !important;
+  }
+
+  .proposal-value-section { 
+    margin-top: -10px !important; 
+    -webkit-print-color-adjust: exact !important; 
+    print-color-adjust: exact !important; 
+  }
+
+  .proposal-header, .proposal-footer, .proposal-service-card, .proposal-item-card { 
+    -webkit-print-color-adjust: exact !important; 
+    print-color-adjust: exact !important; 
+  }
+}

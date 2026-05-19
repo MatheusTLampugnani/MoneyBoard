@@ -34,6 +34,14 @@ const DashboardPage = () => {
         }
 
         const results = await Promise.all(queries);
+        console.log('DashboardPage - isCricasUser:', isCricasUser);
+        console.log('DashboardPage - data loaded:', {
+          transactions: results[0]?.data?.length,
+          products: results[1]?.data?.length,
+          sales: results[2]?.data?.length,
+          installments: results[3]?.data?.length,
+          expenses: results[4]?.data?.length
+        });
 
         setData({
           transactions: results[0].data || [],

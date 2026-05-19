@@ -9,7 +9,8 @@ import {
   Banknote,
   Package,
   ShoppingBag,
-  Tag
+  Tag,
+  FileText
 } from 'lucide-react';
 import './Sidebar.css';
 import { useAuth } from '../../context/AuthContext';
@@ -34,6 +35,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
     { to: '/sold', text: 'Produtos Vendidos', icon: ShoppingBag },
     { to: '/new-sale', text: 'Registrar Venda', icon: Tag },
     { to: '/cash-control', text: 'Controle de Caixa', icon: Banknote },
+    { to: '/generate-proposal', text: 'Gerar Proposta', icon: FileText },
   ];
 
   return (

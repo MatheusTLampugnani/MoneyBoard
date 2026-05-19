@@ -35,7 +35,7 @@ const CategoriesPage = () => {
     const payload = { name: currentCategory.name };
 
     try {
-      const { error } = currentCategory.id 
+      const { error } = currentCategory.id
         ? await supabase.from('categories').update(payload).eq('id', currentCategory.id)
         : await supabase.from('categories').insert([payload]);
 
@@ -82,8 +82,8 @@ const CategoriesPage = () => {
                     <span className="fw-bold">{cat.name}</span>
                   </div>
                   <div>
-                    <Button variant="link" size="sm" className="text-secondary p-1" onClick={() => { setCurrentCategory(cat); setIsFormModalOpen(true); }}><Edit size={16}/></Button>
-                    <Button variant="link" size="sm" className="text-danger p-1" onClick={() => { setItemToDelete(cat.id); setShowDeleteModal(true); }}><Trash2 size={16}/></Button>
+                    <Button variant="link" size="sm" className="text-secondary p-1" onClick={() => { setCurrentCategory(cat); setIsFormModalOpen(true); }}><Edit size={16} /></Button>
+                    <Button variant="link" size="sm" className="text-danger p-1" onClick={() => { setItemToDelete(cat.id); setShowDeleteModal(true); }}><Trash2 size={16} /></Button>
                   </div>
                 </Card.Body>
               </Card>
@@ -95,7 +95,7 @@ const CategoriesPage = () => {
 
       <Modal isOpen={isFormModalOpen} onClose={() => setIsFormModalOpen(false)} title={currentCategory.id ? 'Editar Categoria' : 'Nova Categoria'}>
         <Form onSubmit={handleSubmit}>
-          <Input label="Nome da Categoria (ex: Lazer, Pet, Streaming)" value={currentCategory.name} onChange={e => setCurrentCategory({...currentCategory, name: e.target.value})} required />
+          <Input label="Nome da Categoria (ex: Lazer, Pet, Streaming)" value={currentCategory.name} onChange={e => setCurrentCategory({ ...currentCategory, name: e.target.value })} required />
           <div className="d-flex justify-content-end gap-2 mt-3">
             <Button variant="secondary" onClick={() => setIsFormModalOpen(false)}>Cancelar</Button>
             <Button type="submit">Guardar</Button>
@@ -104,10 +104,10 @@ const CategoriesPage = () => {
       </Modal>
 
       {showDeleteModal && (
-        <Modal 
-          isOpen={showDeleteModal} 
-          onClose={() => setShowDeleteModal(false)} 
-          title="Confirmar Exclusão" 
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          title="Confirmar Exclusão"
           footer={
             <>
               <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</Button>

@@ -10,11 +10,11 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 const TransactionsPage = () => {
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [accounts, setAccounts] = useState([]); 
+  const [accounts, setAccounts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeView, setActiveView] = useState('list');
-  
+
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [currentTransaction, setCurrentTransaction] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -71,7 +71,7 @@ const TransactionsPage = () => {
     transactions.forEach(t => {
       const account = accounts.find(a => a.id === t.account_id);
       const monthKey = getCompetenceKey(t.date, account);
-      
+
       const dateObj = new Date(monthKey + '-02');
       const monthLabel = dateObj.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit', timeZone: 'UTC' });
 
@@ -93,7 +93,15 @@ const TransactionsPage = () => {
   }, [transactions, accounts]);
 
   const openModalForCreate = () => {
-    setCurrentTransaction({ id: null, description: '', amount: '', type: 'despesa', date: formatDateForInput(new Date()), categoryId: '', accountId: '' });
+    setCurrentTransaction({
+      id: null,
+      description: '',
+      amount: '',
+      type: 'despesa',
+      date: formatDateForInput(new Date()),
+      categoryId: '',
+      accountId: ''
+    });
     setIsFormModalOpen(true);
   };
 
@@ -114,14 +122,16 @@ const TransactionsPage = () => {
     };
 
     try {
-      const { error } = currentTransaction.id 
+      const { error } = currentTransaction.id
         ? await supabase.from('transactions').update(data).eq('id', currentTransaction.id)
         : await supabase.from('transactions').insert([data]);
 
       if (error) throw error;
       await fetchData();
       setIsFormModalOpen(false);
-    } catch (err) { alert("Erro ao salvar: " + err.message); }
+    } catch (err) {
+      alert("Erro ao salvar: " + err.message);
+    }
   };
 
   const confirmDelete = async () => {
@@ -130,14 +140,18 @@ const TransactionsPage = () => {
       const { error } = await supabase.from('transactions').delete().eq('id', itemToDelete);
       if (error) throw error;
       await fetchData();
-    } catch (err) { console.error("Erro ao deletar:", err); }
-    finally { setShowDeleteModal(false); setItemToDelete(null); }
+    } catch (err) {
+      console.error("Erro ao deletar:", err);
+    } finally {
+      setShowDeleteModal(false);
+      setItemToDelete(null);
+    }
   };
 
   return (
     <>
       <div className="d-flex align-items-center justify-content-between mb-4">
-        <h1 className="h2">Transações</h1>
+        <h1 className="h2 mb-0">Transações</h1>
         <div className="d-flex gap-2">
           <Button variant={activeView === 'list' ? 'primary' : 'outline-primary'} onClick={() => setActiveView('list')}>
             <List size={18} />
@@ -175,9 +189,9 @@ const TransactionsPage = () => {
           ) : (
             <Tabs defaultActiveKey={sortedMonthKeys[0]} className="mb-4">
               {sortedMonthKeys.map(key => (
-                <Tab 
-                  eventKey={key} 
-                  key={key} 
+                <Tab
+                  eventKey={key}
+                  key={key}
                   title={new Date(key + '-02').toLocaleDateString('pt-BR', { month: 'short', year: '2-digit', timeZone: 'UTC' }).toUpperCase()}
                 >
                   <Card className="shadow-sm border-0 mt-3">
@@ -188,7 +202,6 @@ const TransactionsPage = () => {
                           <th>Conta/Cartão</th>
                           <th>Valor</th>
                           <th>Data Compra</th>
-                          <th>Fatura/Mês</th>
                           <th className="text-end">Ações</th>
                         </tr>
                       </thead>
@@ -196,25 +209,20 @@ const TransactionsPage = () => {
                         {groupedData[key].map(t => (
                           <tr key={t.id}>
                             <td className="align-middle">
-                              {t.description} <br/>
+                              {t.description} <br />
                               <small className="text-muted">{t.categories?.name || 'Sem categoria'}</small>
                             </td>
                             <td className="align-middle">
-                              {t.accounts?.type === 'credito' ? <CreditCard size={14} className="me-1 text-primary"/> : <Wallet size={14} className="me-1 text-success"/>}
+                              {t.accounts?.type === 'credito' ? <CreditCard size={14} className="me-1 text-primary" /> : <Wallet size={14} className="me-1 text-success" />}
                               {t.accounts?.name || 'N/A'}
                             </td>
                             <td className={`align-middle fw-bold ${t.type === 'receita' ? 'text-success' : 'text-danger'}`}>
                               {formatCurrency(t.amount)}
                             </td>
                             <td className="align-middle">{new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</td>
-                            <td className="align-middle">
-                                <span className="badge bg-secondary p-2 shadow-sm">
-                                  {new Date(key + '-02').toLocaleDateString('pt-BR', { month: 'short', year: 'numeric', timeZone: 'UTC' }).toUpperCase()}
-                                </span>
-                            </td>
                             <td className="text-end align-middle">
-                              <Button variant="link" size="sm" className="text-secondary" onClick={() => openModalForEdit(t)}><Edit size={16}/></Button>
-                              <Button variant="link" size="sm" className="text-danger" onClick={() => { setItemToDelete(t.id); setShowDeleteModal(true); }}><Trash2 size={16}/></Button>
+                              <Button variant="link" size="sm" className="text-secondary" onClick={() => openModalForEdit(t)}><Edit size={16} /></Button>
+                              <Button variant="link" size="sm" className="text-danger" onClick={() => { setItemToDelete(t.id); setShowDeleteModal(true); }}><Trash2 size={16} /></Button>
                             </td>
                           </tr>
                         ))}
@@ -228,8 +236,61 @@ const TransactionsPage = () => {
           {transactions.length === 0 && <div className="text-center py-5 text-muted">Nenhuma transação cadastrada.</div>}
         </>
       )}
-      
-      {/* Modais de Form e Delete mantidos iguais */}
+
+      {isFormModalOpen && (
+        <Modal
+          isOpen={isFormModalOpen}
+          onClose={() => setIsFormModalOpen(false)}
+          title={currentTransaction?.id ? 'Editar Transação' : 'Nova Transação'}
+          footer={<><Button variant="secondary" onClick={() => setIsFormModalOpen(false)}>Cancelar</Button><Button onClick={handleSubmit}>Salvar</Button></>}
+        >
+          <Form onSubmit={handleSubmit}>
+            <Input id="description" label="Descrição" value={currentTransaction?.description || ''} onChange={(e) => setCurrentTransaction({ ...currentTransaction, description: e.target.value })} required />
+            <Row>
+              <Col md={6}><Input id="amount" label="Valor" type="number" step="0.01" value={currentTransaction?.amount || ''} onChange={(e) => setCurrentTransaction({ ...currentTransaction, amount: e.target.value })} required /></Col>
+              <Col md={6}><Input id="date" label="Data da Compra" type="date" value={currentTransaction?.date || ''} onChange={(e) => setCurrentTransaction({ ...currentTransaction, date: e.target.value })} required /></Col>
+            </Row>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Pagar com:</Form.Label>
+                  <Form.Select value={currentTransaction?.accountId || ''} onChange={(e) => setCurrentTransaction({ ...currentTransaction, accountId: e.target.value })} required>
+                    <option value="">Selecione...</option>
+                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.type})</option>)}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Categoria</Form.Label>
+                  <Form.Select value={currentTransaction?.categoryId || ''} onChange={(e) => setCurrentTransaction({ ...currentTransaction, categoryId: e.target.value })}>
+                    <option value="">Selecione...</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            </Row>
+            <Form.Group>
+              <Form.Label>Tipo</Form.Label>
+              <div className="d-flex gap-3">
+                <Form.Check type="radio" label="Despesa" name="type" checked={currentTransaction?.type === 'despesa'} onChange={() => setCurrentTransaction({ ...currentTransaction, type: 'despesa' })} />
+                <Form.Check type="radio" label="Receita" name="type" checked={currentTransaction?.type === 'receita'} onChange={() => setCurrentTransaction({ ...currentTransaction, type: 'receita' })} />
+              </div>
+            </Form.Group>
+          </Form>
+        </Modal>
+      )}
+
+      {showDeleteModal && (
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          title="Confirmar Exclusão"
+          footer={<><Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</Button><Button variant="danger" onClick={confirmDelete}>Excluir</Button></>}
+        >
+          <p>Tem certeza que deseja apagar esta transação?</p>
+        </Modal>
+      )}
     </>
   );
 };

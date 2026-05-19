@@ -4,7 +4,7 @@ import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import { Plus, Edit, Trash2, CreditCard, Wallet } from 'lucide-react';
-import { Spinner, Alert, Card, Form, Row, Col } from 'react-bootstrap';
+import { Spinner, Alert, Card, ListGroup, Form, Row, Col } from 'react-bootstrap';
 
 const AccountsPage = () => {
   const [accounts, setAccounts] = useState([]);
@@ -40,7 +40,7 @@ const AccountsPage = () => {
     };
 
     try {
-      const { error } = currentAccount.id 
+      const { error } = currentAccount.id
         ? await supabase.from('accounts').update(payload).eq('id', currentAccount.id)
         : await supabase.from('accounts').insert([payload]);
 
@@ -68,16 +68,11 @@ const AccountsPage = () => {
   return (
     <>
       <div className="d-flex align-items-center justify-content-between mb-4">
-        <h1 className="h2 mb-0">Minhas Contas e Cartões</h1>
-        <Button 
-          onClick={() => { setCurrentAccount({ id: null, name: '', type: 'corrente', closing_day: '', due_day: '' }); setIsFormModalOpen(true); }} 
-          icon={<Plus />}
-        >
-          Nova Conta
-        </Button>
+        <h1 className="h2">Minhas Contas e Cartões</h1>
+        <Button onClick={() => { setCurrentAccount({ id: null, name: '', type: 'corrente', closing_day: '', due_day: '' }); setIsFormModalOpen(true); }} icon={<Plus />}>Nova Conta</Button>
       </div>
 
-      {isLoading ? <Spinner animation="border" /> : error ? <Alert variant="danger">{error}</Alert> : (
+      {isLoading ? <Spinner animation="border" /> : (
         <Row>
           {accounts.map(acc => (
             <Col md={6} key={acc.id} className="mb-3">
@@ -95,24 +90,23 @@ const AccountsPage = () => {
                     </div>
                   </div>
                   <div>
-                    <Button variant="link" className="text-secondary" onClick={() => { setCurrentAccount(acc); setIsFormModalOpen(true); }}><Edit size={18}/></Button>
-                    <Button variant="link" className="text-danger" onClick={() => { setItemToDelete(acc.id); setShowDeleteModal(true); }}><Trash2 size={18}/></Button>
+                    <Button variant="link" className="text-secondary" onClick={() => { setCurrentAccount(acc); setIsFormModalOpen(true); }}><Edit size={18} /></Button>
+                    <Button variant="link" className="text-danger" onClick={() => { setItemToDelete(acc.id); setShowDeleteModal(true); }}><Trash2 size={18} /></Button>
                   </div>
                 </Card.Body>
               </Card>
             </Col>
           ))}
-          {accounts.length === 0 && <div className="text-center py-5 text-muted">Nenhuma conta cadastrada.</div>}
         </Row>
       )}
 
       <Modal isOpen={isFormModalOpen} onClose={() => setIsFormModalOpen(false)} title={currentAccount.id ? 'Editar Conta' : 'Nova Conta'}>
         <Form onSubmit={handleSubmit}>
-          <Input label="Nome da Conta (ex: Nubank, Carteira)" value={currentAccount.name} onChange={e => setCurrentAccount({...currentAccount, name: e.target.value})} required />
-          
+          <Input label="Nome da Conta (ex: Nubank, Carteira)" value={currentAccount.name} onChange={e => setCurrentAccount({ ...currentAccount, name: e.target.value })} required />
+
           <Form.Group className="mb-3">
             <Form.Label>Tipo de Conta</Form.Label>
-            <Form.Select value={currentAccount.type} onChange={e => setCurrentAccount({...currentAccount, type: e.target.value})}>
+            <Form.Select value={currentAccount.type} onChange={e => setCurrentAccount({ ...currentAccount, type: e.target.value })}>
               <option value="corrente">Conta Corrente / Dinheiro</option>
               <option value="credito">Cartão de Crédito</option>
             </Form.Select>
@@ -120,8 +114,8 @@ const AccountsPage = () => {
 
           {currentAccount.type === 'credito' && (
             <Row>
-              <Col><Input label="Dia de Fecho" type="number" value={currentAccount.closing_day} onChange={e => setCurrentAccount({...currentAccount, closing_day: e.target.value})} required /></Col>
-              <Col><Input label="Dia de Vencimento" type="number" value={currentAccount.due_day} onChange={e => setCurrentAccount({...currentAccount, due_day: e.target.value})} required /></Col>
+              <Col><Input label="Dia de Fecho" type="number" value={currentAccount.closing_day} onChange={e => setCurrentAccount({ ...currentAccount, closing_day: e.target.value })} required /></Col>
+              <Col><Input label="Dia de Vencimento" type="number" value={currentAccount.due_day} onChange={e => setCurrentAccount({ ...currentAccount, due_day: e.target.value })} required /></Col>
             </Row>
           )}
           <div className="d-flex justify-content-end gap-2 mt-3">
@@ -132,10 +126,10 @@ const AccountsPage = () => {
       </Modal>
 
       {showDeleteModal && (
-        <Modal 
-          isOpen={showDeleteModal} 
-          onClose={() => setShowDeleteModal(false)} 
-          title="Confirmar Exclusão" 
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          title="Confirmar Exclusão"
           footer={
             <>
               <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</Button>

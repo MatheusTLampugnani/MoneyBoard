@@ -24,6 +24,7 @@ import NewSalePage from './pages/NewSalePage';
 import SoldPage from './pages/SoldPage';
 import GenerateArtPage from './pages/GenerateArtPage';
 import GenerateReceiptPage from './pages/GenerateReceiptPage';
+import GenerateProposalPage from './pages/GenerateProposalPage';
 import CashControlPage from './pages/CashControlPage';
 
 const ProtectedRoute = ({ children }) => {
@@ -65,6 +66,7 @@ function App() {
             <Route path="/sold" element={<SoldPage />} />
             <Route path="/generate-art" element={<GenerateArtPage />} />
             <Route path="/generate-receipt" element={<GenerateReceiptPage />} />
+            <Route path="/generate-proposal" element={<GenerateProposalPage />} />
             <Route path="/cash-control" element={<CashControlPage />} />
           </>
         )}
