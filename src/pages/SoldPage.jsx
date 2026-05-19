@@ -10,17 +10,15 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 const TransactionsPage = () => {
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [accounts, setAccounts] = useState([]); 
+  const [accounts, setAccounts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeView, setActiveView] = useState('list');
-  
+
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [currentTransaction, setCurrentTransaction] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
-
-  const [isPremium, setIsPremium] = useState(false);
 
   const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   const formatDateForInput = (date) => date ? new Date(date).toISOString().split('T')[0] : '';
@@ -73,7 +71,7 @@ const TransactionsPage = () => {
     transactions.forEach(t => {
       const account = accounts.find(a => a.id === t.account_id);
       const monthKey = getCompetenceKey(t.date, account);
-      
+
       const dateObj = new Date(monthKey + '-02');
       const monthLabel = dateObj.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit', timeZone: 'UTC' });
 
@@ -95,14 +93,14 @@ const TransactionsPage = () => {
   }, [transactions, accounts]);
 
   const openModalForCreate = () => {
-    setCurrentTransaction({ 
-      id: null, 
-      description: '', 
-      amount: '', 
-      type: 'despesa', 
-      date: formatDateForInput(new Date()), 
-      categoryId: '', 
-      accountId: '' 
+    setCurrentTransaction({
+      id: null,
+      description: '',
+      amount: '',
+      type: 'despesa',
+      date: formatDateForInput(new Date()),
+      categoryId: '',
+      accountId: ''
     });
     setIsFormModalOpen(true);
   };
@@ -124,7 +122,7 @@ const TransactionsPage = () => {
     };
 
     try {
-      const { error } = currentTransaction.id 
+      const { error } = currentTransaction.id
         ? await supabase.from('transactions').update(data).eq('id', currentTransaction.id)
         : await supabase.from('transactions').insert([data]);
 
@@ -153,16 +151,7 @@ const TransactionsPage = () => {
   return (
     <>
       <div className="d-flex align-items-center justify-content-between mb-4">
-        <div>
-          <h1 className="h2 mb-0">Transações</h1>
-          <Form.Check 
-            type="switch" 
-            label={isPremium ? "💎 Modo Premium Ativo" : "Modo Freemium"} 
-            checked={isPremium} 
-            onChange={() => setIsPremium(!isPremium)}
-            className="mt-2 text-primary fw-bold"
-          />
-        </div>
+        <h1 className="h2 mb-0">Transações</h1>
         <div className="d-flex gap-2">
           <Button variant={activeView === 'list' ? 'primary' : 'outline-primary'} onClick={() => setActiveView('list')}>
             <List size={18} />
@@ -200,9 +189,9 @@ const TransactionsPage = () => {
           ) : (
             <Tabs defaultActiveKey={sortedMonthKeys[0]} className="mb-4">
               {sortedMonthKeys.map(key => (
-                <Tab 
-                  eventKey={key} 
-                  key={key} 
+                <Tab
+                  eventKey={key}
+                  key={key}
                   title={new Date(key + '-02').toLocaleDateString('pt-BR', { month: 'short', year: '2-digit', timeZone: 'UTC' }).toUpperCase()}
                 >
                   <Card className="shadow-sm border-0 mt-3">
@@ -213,7 +202,6 @@ const TransactionsPage = () => {
                           <th>Conta/Cartão</th>
                           <th>Valor</th>
                           <th>Data Compra</th>
-                          {isPremium && <th>Fatura/Mês</th>}
                           <th className="text-end">Ações</th>
                         </tr>
                       </thead>
@@ -221,30 +209,20 @@ const TransactionsPage = () => {
                         {groupedData[key].map(t => (
                           <tr key={t.id}>
                             <td className="align-middle">
-                              {t.description} <br/>
+                              {t.description} <br />
                               <small className="text-muted">{t.categories?.name || 'Sem categoria'}</small>
                             </td>
                             <td className="align-middle">
-                              {t.accounts?.type === 'credito' ? <CreditCard size={14} className="me-1 text-primary"/> : <Wallet size={14} className="me-1 text-success"/>}
+                              {t.accounts?.type === 'credito' ? <CreditCard size={14} className="me-1 text-primary" /> : <Wallet size={14} className="me-1 text-success" />}
                               {t.accounts?.name || 'N/A'}
                             </td>
                             <td className={`align-middle fw-bold ${t.type === 'receita' ? 'text-success' : 'text-danger'}`}>
                               {formatCurrency(t.amount)}
                             </td>
                             <td className="align-middle">{new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</td>
-                            
-                            {/* CÉLULA CONDICIONAL DA INOVAÇÃO - SÓ PREMIUM */}
-                            {isPremium && (
-                              <td className="align-middle">
-                                <span className="badge bg-secondary p-2 shadow-sm">
-                                  {new Date(key + '-02').toLocaleDateString('pt-BR', { month: 'short', year: 'numeric', timeZone: 'UTC' }).toUpperCase()}
-                                </span>
-                              </td>
-                            )}
-
                             <td className="text-end align-middle">
-                              <Button variant="link" size="sm" className="text-secondary" onClick={() => openModalForEdit(t)}><Edit size={16}/></Button>
-                              <Button variant="link" size="sm" className="text-danger" onClick={() => { setItemToDelete(t.id); setShowDeleteModal(true); }}><Trash2 size={16}/></Button>
+                              <Button variant="link" size="sm" className="text-secondary" onClick={() => openModalForEdit(t)}><Edit size={16} /></Button>
+                              <Button variant="link" size="sm" className="text-danger" onClick={() => { setItemToDelete(t.id); setShowDeleteModal(true); }}><Trash2 size={16} /></Button>
                             </td>
                           </tr>
                         ))}
@@ -260,9 +238,9 @@ const TransactionsPage = () => {
       )}
 
       {isFormModalOpen && (
-        <Modal 
-          isOpen={isFormModalOpen} 
-          onClose={() => setIsFormModalOpen(false)} 
+        <Modal
+          isOpen={isFormModalOpen}
+          onClose={() => setIsFormModalOpen(false)}
           title={currentTransaction?.id ? 'Editar Transação' : 'Nova Transação'}
           footer={<><Button variant="secondary" onClick={() => setIsFormModalOpen(false)}>Cancelar</Button><Button onClick={handleSubmit}>Salvar</Button></>}
         >
@@ -295,8 +273,8 @@ const TransactionsPage = () => {
             <Form.Group>
               <Form.Label>Tipo</Form.Label>
               <div className="d-flex gap-3">
-                <Form.Check type="radio" label="Despesa" name="type" checked={currentTransaction?.type === 'despesa'} onChange={() => setCurrentTransaction({...currentTransaction, type: 'despesa'})} />
-                <Form.Check type="radio" label="Receita" name="type" checked={currentTransaction?.type === 'receita'} onChange={() => setCurrentTransaction({...currentTransaction, type: 'receita'})} />
+                <Form.Check type="radio" label="Despesa" name="type" checked={currentTransaction?.type === 'despesa'} onChange={() => setCurrentTransaction({ ...currentTransaction, type: 'despesa' })} />
+                <Form.Check type="radio" label="Receita" name="type" checked={currentTransaction?.type === 'receita'} onChange={() => setCurrentTransaction({ ...currentTransaction, type: 'receita' })} />
               </div>
             </Form.Group>
           </Form>
@@ -304,10 +282,10 @@ const TransactionsPage = () => {
       )}
 
       {showDeleteModal && (
-        <Modal 
-          isOpen={showDeleteModal} 
-          onClose={() => setShowDeleteModal(false)} 
-          title="Confirmar Exclusão" 
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          title="Confirmar Exclusão"
           footer={<><Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</Button><Button variant="danger" onClick={confirmDelete}>Excluir</Button></>}
         >
           <p>Tem certeza que deseja apagar esta transação?</p>
