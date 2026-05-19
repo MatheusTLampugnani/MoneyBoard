@@ -151,7 +151,7 @@ const TransactionsPage = () => {
   return (
     <>
       <div className="d-flex align-items-center justify-content-between mb-4">
-        <h1 className="h2">Transações</h1>
+        <h1 className="h2 mb-0">Transações</h1>
         <div className="d-flex gap-2">
           <Button variant={activeView === 'list' ? 'primary' : 'outline-primary'} onClick={() => setActiveView('list')}>
             <List size={18} />

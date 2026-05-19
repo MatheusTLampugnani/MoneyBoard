@@ -30,7 +30,6 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  // Lógica original mantida: verifica o email real ou a flag de simulação
   const isCricasUser = useMemo(() => {
     const isCricas = user?.email?.trim().toLowerCase() === 'cricaskrav64@gmail.com' || localStorage.getItem('debug_cricas') === 'true';
     console.log('AuthContext - user email:', user?.email, 'isCricasUser:', isCricas);
@@ -38,36 +37,36 @@ export const AuthProvider = ({ children }) => {
   }, [user]);
 
   const login = (email, password) => supabase.auth.signInWithPassword({ email, password });
-  
+
   const logout = () => {
     localStorage.removeItem('debug_cricas');
     return supabase.auth.signOut();
   };
-  
-  const register = (name, email, password) => 
-    supabase.auth.signUp({ 
-      email, 
-      password, 
-      options: { data: { name } } 
+
+  const register = (name, email, password) =>
+    supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name } }
     });
 
   const isDebugActive = localStorage.getItem('debug_cricas') === 'true';
-  
+
   const isAuthenticated = !!session || isDebugActive;
-  
-  const currentUser = isDebugActive && !user 
-    ? { email: 'cricaskrav64@gmail.com', user_metadata: { name: 'Cricas (Simulação)' } } 
+
+  const currentUser = isDebugActive && !user
+    ? { email: 'cricaskrav64@gmail.com', user_metadata: { name: 'Cricas (Simulação)' } }
     : user;
 
-  const value = { 
-    user: currentUser, 
+  const value = {
+    user: currentUser,
     isCricasUser,
-    session, 
-    isAuthenticated, 
-    isLoading, 
-    login, 
-    logout, 
-    register 
+    session,
+    isAuthenticated,
+    isLoading,
+    login,
+    logout,
+    register
   };
 
   return (

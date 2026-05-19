@@ -1,298 +1,279 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import Modal from '../components/common/Modal';
-import Button from '../components/common/Button';
-import Input from '../components/common/Input';
-import { Plus, Edit, Trash2, BarChart3, List, CreditCard, Wallet } from 'lucide-react';
-import { Spinner, Alert, Card, Table, Form, Row, Col, Tabs, Tab } from 'react-bootstrap';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ShoppingBag, Calendar, User, Tag, Eye, FileText, Trash2 } from 'lucide-react';
+import { Spinner, Alert, Card, Table, Modal, Button } from 'react-bootstrap';
 
-const TransactionsPage = () => {
-  const [transactions, setTransactions] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [accounts, setAccounts] = useState([]);
+const SoldPage = () => {
+  const [sales, setSales] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeView, setActiveView] = useState('list');
 
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-  const [currentTransaction, setCurrentTransaction] = useState(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedSale, setSelectedSale] = useState(null);
 
-  const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  const formatDateForInput = (date) => date ? new Date(date).toISOString().split('T')[0] : '';
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+  };
 
-  const fetchData = useCallback(async () => {
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+  };
+
+  const fetchSales = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [tRes, cRes, aRes] = await Promise.all([
-        supabase.from('transactions').select('*, categories(name), accounts(*)').order('date', { ascending: false }),
-        supabase.from('categories').select('*').order('name'),
-        supabase.from('accounts').select('*').order('name')
-      ]);
+      const { data, error: fetchError } = await supabase
+        .from('sales')
+        .select(`
+          *,
+          products (
+            name
+          ),
+          sale_installments (*)
+        `)
+        .order('sale_date', { ascending: false });
 
-      if (tRes.error) throw tRes.error;
-      if (cRes.error) throw cRes.error;
-      if (aRes.error) throw aRes.error;
+      if (fetchError) throw fetchError;
 
-      setTransactions(tRes.data.map(t => ({ ...t, categoryId: t.category_id, accountId: t.account_id })) || []);
-      setCategories(cRes.data || []);
-      setAccounts(aRes.data || []);
+      setSales(data || []);
     } catch (err) {
-      console.error("Erro ao buscar dados:", err);
-      setError("Não foi possível carregar as informações.");
+      console.error("Erro ao buscar vendas:", err);
+      setError("Não foi possível carregar o histórico de vendas.");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchSales();
+  }, [fetchSales]);
 
-  const getCompetenceKey = (dateStr, account) => {
-    const date = new Date(dateStr);
-    let month = date.getUTCMonth();
-    let year = date.getUTCFullYear();
-
-    if (account?.type === 'credito' && account.closing_day) {
-      if (date.getUTCDate() >= account.closing_day) {
-        month += 1;
-        if (month > 11) { month = 0; year += 1; }
-      }
-    }
-    return `${year}-${String(month + 1).padStart(2, '0')}`;
+  const handleOpenDetails = (sale) => {
+    setSelectedSale(sale);
+    setShowDetailsModal(true);
   };
 
-  const { groupedData, chartData, sortedMonthKeys } = useMemo(() => {
-    const groups = {};
-    const chartMap = {};
-
-    transactions.forEach(t => {
-      const account = accounts.find(a => a.id === t.account_id);
-      const monthKey = getCompetenceKey(t.date, account);
-
-      const dateObj = new Date(monthKey + '-02');
-      const monthLabel = dateObj.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit', timeZone: 'UTC' });
-
-      if (!groups[monthKey]) groups[monthKey] = [];
-      groups[monthKey].push(t);
-
-      if (!chartMap[monthKey]) {
-        chartMap[monthKey] = { name: monthLabel, receitas: 0, despesas: 0, rawDate: monthKey };
-      }
-      const amount = parseFloat(t.amount);
-      if (t.type === 'receita') chartMap[monthKey].receitas += amount;
-      else chartMap[monthKey].despesas += amount;
-    });
-
-    const sortedKeys = Object.keys(groups).sort().reverse();
-    const sortedChart = Object.values(chartMap).sort((a, b) => a.rawDate.localeCompare(b.rawDate));
-
-    return { groupedData: groups, chartData: sortedChart, sortedMonthKeys: sortedKeys };
-  }, [transactions, accounts]);
-
-  const openModalForCreate = () => {
-    setCurrentTransaction({
-      id: null,
-      description: '',
-      amount: '',
-      type: 'despesa',
-      date: formatDateForInput(new Date()),
-      categoryId: '',
-      accountId: ''
-    });
-    setIsFormModalOpen(true);
+  const handleCloseDetails = () => {
+    setSelectedSale(null);
+    setShowDetailsModal(false);
   };
 
-  const openModalForEdit = (t) => {
-    setCurrentTransaction({ ...t, date: formatDateForInput(t.date) });
-    setIsFormModalOpen(true);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const data = {
-      description: currentTransaction.description,
-      amount: parseFloat(currentTransaction.amount),
-      type: currentTransaction.type,
-      date: currentTransaction.date,
-      category_id: currentTransaction.categoryId || null,
-      account_id: currentTransaction.accountId || null,
-    };
+  const toggleInstallmentStatus = async (installmentId, currentStatus) => {
+    const newStatus = (currentStatus === 'pendente') ? 'pago' : 'pendente';
 
     try {
-      const { error } = currentTransaction.id
-        ? await supabase.from('transactions').update(data).eq('id', currentTransaction.id)
-        : await supabase.from('transactions').insert([data]);
+      const { error: updateError } = await supabase
+        .from('sale_installments')
+        .update({ status: newStatus })
+        .eq('id', installmentId);
 
-      if (error) throw error;
-      await fetchData();
-      setIsFormModalOpen(false);
-    } catch (err) {
-      alert("Erro ao salvar: " + err.message);
-    }
-  };
+      if (updateError) throw updateError;
 
-  const confirmDelete = async () => {
-    if (!itemToDelete) return;
-    try {
-      const { error } = await supabase.from('transactions').delete().eq('id', itemToDelete);
-      if (error) throw error;
-      await fetchData();
+      const updatedInstallments = selectedSale.sale_installments.map(inst =>
+        inst.id === installmentId ? { ...inst, status: newStatus } : inst
+      );
+
+      setSelectedSale({ ...selectedSale, sale_installments: updatedInstallments });
+
+      setSales(prevSales => prevSales.map(sale =>
+        sale.id === selectedSale.id ? { ...sale, sale_installments: updatedInstallments } : sale
+      ));
+
     } catch (err) {
-      console.error("Erro ao deletar:", err);
-    } finally {
-      setShowDeleteModal(false);
-      setItemToDelete(null);
+      console.error("Erro ao atualizar parcela:", err);
+      alert("Erro ao atualizar o status da parcela. Verifique a sua conexão.");
     }
   };
 
   return (
     <>
       <div className="d-flex align-items-center justify-content-between mb-4">
-        <h1 className="h2 mb-0">Transações</h1>
-        <div className="d-flex gap-2">
-          <Button variant={activeView === 'list' ? 'primary' : 'outline-primary'} onClick={() => setActiveView('list')}>
-            <List size={18} />
-          </Button>
-          <Button variant={activeView === 'chart' ? 'primary' : 'outline-primary'} onClick={() => setActiveView('chart')}>
-            <BarChart3 size={18} />
-          </Button>
-          <Button onClick={openModalForCreate} icon={<Plus />}>Nova</Button>
-        </div>
+        <h1 className="h2 mb-0 d-flex align-items-center">
+          <ShoppingBag className="me-2 text-primary" size={28} />
+          Produtos Vendidos
+        </h1>
       </div>
 
       {isLoading ? (
-        <div className="text-center py-5"><Spinner animation="border" variant="primary" /></div>
+        <div className="text-center py-5">
+          <Spinner animation="border" variant="primary" />
+          <p className="mt-2 text-muted">Carregando vendas e faturamento...</p>
+        </div>
       ) : error ? (
         <Alert variant="danger">{error}</Alert>
       ) : (
-        <>
-          {activeView === 'chart' ? (
-            <Card className="shadow-sm p-4 mb-4 border-0">
-              <Card.Title className="mb-4">Fluxo Mensal (Faturas)</Card.Title>
-              <div style={{ width: '100%', height: 350 }}>
-                <ResponsiveContainer>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" />
-                    <YAxis tickFormatter={(val) => `R$ ${val}`} />
-                    <Tooltip formatter={(val) => formatCurrency(val)} />
-                    <Legend />
-                    <Bar dataKey="receitas" fill="#198754" name="Receitas" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="despesas" fill="#dc3545" name="Despesas" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+        <Card className="shadow-sm border-0">
+          <Table responsive hover className="mb-0">
+            <thead className="table-light">
+              <tr>
+                <th>Produto</th>
+                <th>Cliente</th>
+                <th>Preço Final</th>
+                <th>Pagamento</th>
+                <th>Data</th>
+                <th className="text-end">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sales.map((sale) => {
+                const totalParcelas = sale.sale_installments?.length || 0;
+
+                const temPendente = sale.sale_installments?.some(p => p.status === 'pendente');
+
+                return (
+                  <tr key={sale.id}>
+                    <td className="align-middle">
+                      <div className="fw-bold text-dark">
+                        {sale.products?.name || 'Produto não encontrado'}
+                      </div>
+                      <small className="text-muted d-block">Qtd: {sale.quantity}</small>
+                    </td>
+
+                    <td className="align-middle text-secondary fw-semibold">
+                      {sale.customer_name || 'CLIENTE PADRÃO'}
+                    </td>
+                    <td className="align-middle fw-bold text-dark">
+                      {formatCurrency(sale.final_sale_price)}
+                    </td>
+
+                    <td className="align-middle">
+                      {totalParcelas > 0 ? (
+                        <span className={`badge ${temPendente ? 'bg-warning text-dark' : 'bg-success'} p-2 px-3 rounded-pill fw-bold`}>
+                          {temPendente ? `Parcelado ${totalParcelas}x` : 'Totalmente Pago'}
+                        </span>
+                      ) : (
+                        <span className="badge bg-success p-2 px-3 rounded-pill fw-bold">
+                          Pago
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="align-middle text-muted">
+                      {formatDate(sale.sale_date)}
+                    </td>
+
+                    <td className="text-end align-middle">
+                      <div className="d-flex justify-content-end gap-1">
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={() => handleOpenDetails(sale)}
+                          title="Ver detalhes e parcelas"
+                        >
+                          <Eye size={16} />
+                        </Button>
+                        <Button variant="outline-secondary" size="sm" title="Gerar Recibo">
+                          <FileText size={16} />
+                        </Button>
+                        <Button variant="outline-danger" size="sm" title="Excluir Registro">
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+
+          {sales.length === 0 && (
+            <div className="text-center py-5 text-muted">
+              Nenhuma venda localizada nesta conta.
+            </div>
+          )}
+        </Card>
+      )}
+
+      <Modal show={showDetailsModal} onHide={handleCloseDetails} size="lg" centered>
+        <Modal.Header closeButton>
+          <Modal.Title className="h5 fw-bold">
+            Detalhes do Fluxo de Pagamento
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedSale && (
+            <>
+              <div className="row mb-4 bg-light p-3 rounded mx-1">
+                <div className="col-md-6 mb-2 mb-md-0">
+                  <span className="text-muted small d-block">Cliente</span>
+                  <strong className="text-dark">{selectedSale.customer_name || 'CLIENTE PADRÃO'}</strong>
+                </div>
+                <div className="col-md-6">
+                  <span className="text-muted small d-block">Produto</span>
+                  <strong className="text-dark">{selectedSale.products?.name}</strong>
+                </div>
+                <div className="col-md-4 mt-3">
+                  <span className="text-muted small d-block">Valor Total da Venda</span>
+                  <strong className="text-success h5">{formatCurrency(selectedSale.final_sale_price)}</strong>
+                </div>
+                <div className="col-md-4 mt-3">
+                  <span className="text-muted small d-block">Entrada / Valor Inicial</span>
+                  <strong className="text-warning h5">{formatCurrency(selectedSale.down_payment)}</strong>
+                </div>
+                <div className="col-md-4 mt-3">
+                  <span className="text-muted small d-block">Data Geral</span>
+                  <strong className="text-dark">{formatDate(selectedSale.sale_date)}</strong>
+                </div>
               </div>
-            </Card>
-          ) : (
-            <Tabs defaultActiveKey={sortedMonthKeys[0]} className="mb-4">
-              {sortedMonthKeys.map(key => (
-                <Tab
-                  eventKey={key}
-                  key={key}
-                  title={new Date(key + '-02').toLocaleDateString('pt-BR', { month: 'short', year: '2-digit', timeZone: 'UTC' }).toUpperCase()}
-                >
-                  <Card className="shadow-sm border-0 mt-3">
-                    <Table responsive hover className="mb-0">
-                      <thead className="table-light">
-                        <tr>
-                          <th>Descrição</th>
-                          <th>Conta/Cartão</th>
-                          <th>Valor</th>
-                          <th>Data Compra</th>
-                          <th className="text-end">Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {groupedData[key].map(t => (
-                          <tr key={t.id}>
-                            <td className="align-middle">
-                              {t.description} <br />
-                              <small className="text-muted">{t.categories?.name || 'Sem categoria'}</small>
-                            </td>
-                            <td className="align-middle">
-                              {t.accounts?.type === 'credito' ? <CreditCard size={14} className="me-1 text-primary" /> : <Wallet size={14} className="me-1 text-success" />}
-                              {t.accounts?.name || 'N/A'}
-                            </td>
-                            <td className={`align-middle fw-bold ${t.type === 'receita' ? 'text-success' : 'text-danger'}`}>
-                              {formatCurrency(t.amount)}
-                            </td>
-                            <td className="align-middle">{new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</td>
-                            <td className="text-end align-middle">
-                              <Button variant="link" size="sm" className="text-secondary" onClick={() => openModalForEdit(t)}><Edit size={16} /></Button>
-                              <Button variant="link" size="sm" className="text-danger" onClick={() => { setItemToDelete(t.id); setShowDeleteModal(true); }}><Trash2 size={16} /></Button>
+
+              <h6 className="fw-bold mb-3 px-1 text-primary">Cronograma de Parcelas Cadastradas</h6>
+              <p className="text-muted small px-1 mb-3">Dica: Clique no botão de Status para marcar como pago ou pendente.</p>
+
+              {selectedSale.sale_installments && selectedSale.sale_installments.length > 0 ? (
+                <Table responsive bordered hover className="mb-0 align-middle">
+                  <thead className="table-light">
+                    <tr>
+                      <th className="text-center" style={{ width: '80px' }}>Nº</th>
+                      <th>Vencimento</th>
+                      <th className="text-end">Valor da Parcela</th>
+                      <th className="text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedSale.sale_installments
+                      .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
+                      .map((installment, index) => {
+                        const numParcela = installment.installment_number || installment.numero || installment.parcela || (index + 1);
+                        const isPago = installment.status === 'pago' || installment.status === 'paid';
+
+                        return (
+                          <tr key={installment.id || index}>
+                            <td className="text-center fw-bold">{numParcela}ª</td>
+                            <td>{formatDate(installment.due_date)}</td>
+                            <td className="text-end fw-bold text-dark">{formatCurrency(installment.amount || installment.valor)}</td>
+                            <td className="text-center">
+                              <button
+                                onClick={() => toggleInstallmentStatus(installment.id, installment.status)}
+                                className={`btn btn-sm badge px-3 py-2 rounded-pill border-0 ${isPago ? 'bg-success text-white' : 'bg-danger text-white'}`}
+                                style={{ cursor: 'pointer', transition: 'all 0.2s', width: '90px' }}
+                                title="Clique para mudar o status"
+                              >
+                                {isPago ? 'Recebido' : 'Pendente'}
+                              </button>
                             </td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  </Card>
-                </Tab>
-              ))}
-            </Tabs>
+                        );
+                      })}
+                  </tbody>
+                </Table>
+              ) : (
+                <div className="text-center py-4 bg-light rounded text-muted border border-dashed">
+                  Esta venda foi processada como pagamento único à vista. Não há parcelas futuras pendentes no banco.
+                </div>
+              )}
+            </>
           )}
-          {transactions.length === 0 && <div className="text-center py-5 text-muted">Nenhuma transação cadastrada.</div>}
-        </>
-      )}
-
-      {isFormModalOpen && (
-        <Modal
-          isOpen={isFormModalOpen}
-          onClose={() => setIsFormModalOpen(false)}
-          title={currentTransaction?.id ? 'Editar Transação' : 'Nova Transação'}
-          footer={<><Button variant="secondary" onClick={() => setIsFormModalOpen(false)}>Cancelar</Button><Button onClick={handleSubmit}>Salvar</Button></>}
-        >
-          <Form onSubmit={handleSubmit}>
-            <Input id="description" label="Descrição" value={currentTransaction?.description || ''} onChange={(e) => setCurrentTransaction({ ...currentTransaction, description: e.target.value })} required />
-            <Row>
-              <Col md={6}><Input id="amount" label="Valor" type="number" step="0.01" value={currentTransaction?.amount || ''} onChange={(e) => setCurrentTransaction({ ...currentTransaction, amount: e.target.value })} required /></Col>
-              <Col md={6}><Input id="date" label="Data da Compra" type="date" value={currentTransaction?.date || ''} onChange={(e) => setCurrentTransaction({ ...currentTransaction, date: e.target.value })} required /></Col>
-            </Row>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Pagar com:</Form.Label>
-                  <Form.Select value={currentTransaction?.accountId || ''} onChange={(e) => setCurrentTransaction({ ...currentTransaction, accountId: e.target.value })} required>
-                    <option value="">Selecione...</option>
-                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.type})</option>)}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Categoria</Form.Label>
-                  <Form.Select value={currentTransaction?.categoryId || ''} onChange={(e) => setCurrentTransaction({ ...currentTransaction, categoryId: e.target.value })}>
-                    <option value="">Selecione...</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
-            <Form.Group>
-              <Form.Label>Tipo</Form.Label>
-              <div className="d-flex gap-3">
-                <Form.Check type="radio" label="Despesa" name="type" checked={currentTransaction?.type === 'despesa'} onChange={() => setCurrentTransaction({ ...currentTransaction, type: 'despesa' })} />
-                <Form.Check type="radio" label="Receita" name="type" checked={currentTransaction?.type === 'receita'} onChange={() => setCurrentTransaction({ ...currentTransaction, type: 'receita' })} />
-              </div>
-            </Form.Group>
-          </Form>
-        </Modal>
-      )}
-
-      {showDeleteModal && (
-        <Modal
-          isOpen={showDeleteModal}
-          onClose={() => setShowDeleteModal(false)}
-          title="Confirmar Exclusão"
-          footer={<><Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</Button><Button variant="danger" onClick={confirmDelete}>Excluir</Button></>}
-        >
-          <p>Tem certeza que deseja apagar esta transação?</p>
-        </Modal>
-      )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseDetails}>
+            Fechar Janela
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </>
   );
 };
 
-export default TransactionsPage;
+export default SoldPage;
